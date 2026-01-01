@@ -1,4 +1,4 @@
-          { Copyright (C) 2025  StOver }
+          { Copyright (C) 2025, 2026  StOver }
           {$CODEPAGE UTF8}
 Unit
           LazWinColEdTabsImpl;
@@ -15,6 +15,9 @@ Unit
 
 Interface
 
+Uses
+          ComCtrls
+          ;
 
 Procedure
           Register;
@@ -26,7 +29,11 @@ Uses
           ,
           Classes
           ,
+          commCtrl
+          ,
           SysUtils
+          ,
+          syncObjs
           ,
           extCtrls
           ,
@@ -59,6 +66,8 @@ Const
           // command
           SABOUT_ADDINN                     = 'about_lazwincoledtabs';
 
+          cstr_TABCTRL_WINCLS_NAME          = 'SysTabControl32';
+
 Resourcestring
 
           SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.1';
@@ -69,7 +78,12 @@ Type
 
           tHTypeHelperString                = Type Helper( tStringHelper) For String
 
+          Const
+             str_LogFilePath                : String= 'c:\temp\';
+             str_LogFileNmeFmtStr           : String= 'yyyy-mm-dd';
+
              Function                       saveToFile( aFileName: String; aDoAppend: boolEan= False): boolEan;
+             Function                       logString ( aDoAppend: boolEan= False): boolEan;
 
           End;
 
@@ -88,20 +102,45 @@ Type
 
           tHelpObj                          = Class( tObject)
 
+          Const
+
+             ccol_TabLight                  : tColor= clWhite;
+             ccol_TabShadow                 : tColor= $999975;
+
+             ccol_TabEmporeUnSel            : tColor= $E7E8A8;
+
+             ccol_TabEmporeSlctd            : tColor= $0000FF;
+
+             ccol_TabFontUnSel              : tColor= $0000FF;
+             ccol_TabFontSlctd              : tColor= $E7E8A8;
+
+             cstr_TabFontName               : String= 'Tahoma'#0;
+
+
           Private
 
              tcHwnd                         : hWnd;
              oldWDP                         : LONG_PTR;
-             vtLgFnt                        : tLogFont;
              dwProcessId                    : dWord;
+
+             //bln_ShdMsg                     : boolEan;
 
              tmrStart                       : extCtrls.tTimer;
 
+             intFontHeight                  : intEger;
+             intFontWidth                   : intEger;
+
           Protected
 
+             Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aColor: tColor); StdCall;
+             Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+             Procedure                      prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
+             Procedure                      drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      paintTabs( aHWnd: hWND); StdCall;
 
              Procedure                      startTimer( aSender: tObject);
+
+             Function                       getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
 
              Procedure                      init();
 
@@ -126,8 +165,6 @@ Begin
           //
 End;
           {$hints on}
-
-
 
 
 Function
@@ -161,6 +198,45 @@ Begin
 
 End;
 
+Function  // loggas little helper
+          _formatMsg4Log( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): String; StdCall;
+Var
+          vStHwnd                           : String;
+          vStWMsg                           : String;
+          vStwPrm                           : String;
+          vStlPrm                           : String;
+          vStDtT                            : String;
+
+Begin
+          vStHwnd:= aHWnd.toString();
+          vStWMsg:= iu_WinMessages.getWinMsgName( tWinMessages( aMsg));
+          vStwPrm:= aWParam.toString();
+          vStlPrm:= aLParam.toString();
+
+          vStDtT := now().toString( 1, 2, 3, 0, 4, 5, 6, 7);
+
+          Result := vStDtT+ #9+ 'hWnd => '+ vStHwnd+ ' - Msg => '+ vStWMsg+ ' - wPrm => '+ vStwPrm+ ' - lPrm => '+ vStlPrm;
+
+End;
+
+Function  // loggas little helper
+          _formatRect4Log( aRect: tRect): String; StdCall;
+Var
+          vStDtT                            : String;
+
+Begin
+          vStDtT := now().toString( 1, 2, 3, 0, 4, 5, 6, 7);
+
+          Result := vStDtT+ #9+ 'aRect : '+
+                    'Left  = '+ aRect.Left  .toString()+ ', '+
+                    ' Top  = '+ aRect.Top   .toString()+ ', '+
+                    'Right = '+ aRect.Right .toString()+ ', '+
+                    'Bottom= '+ aRect.Bottom.toString()+ ', '+
+                    'Width = '+ aRect.Width .toString()+ ', '+
+                    'Height= '+ aRect.Height.toString();
+
+End;
+
           { tHTypeHelperString }
 
 Function
@@ -173,10 +249,14 @@ Var
           {$IfNDef FPC331aa}
           vI64One                           : int64;
           {$EndIf}
+          vtCriSctn                         : tRtlCriticalSection;
 
 Begin
           Result:= False;
 
+          vtCriSctn.DebugInfo:= Nil;
+          initializeCriticalSection( vtCriSctn);
+          enterCriticalSection( vtCriSctn);
           Try
              vtMemStm:= tMemoryStream.create();
 
@@ -206,7 +286,25 @@ Begin
              Try
                 freeAndNil( vtMemStm);
              Except End;
+             Try
+                leaveCriticalSection( vtCriSctn);
+             Except End;
+
           End;
+
+End;
+
+Function
+          tHTypeHelperString.logString ( aDoAppend: boolEan= False): boolEan;
+Var
+          vStDtFmttd                        : String;
+          vStFleNme                         : String;
+Begin
+          exit;  // remove to do some logging in a file, if removedm it might be lead to a crash of Lazarus
+          vStDtFmttd:= '';
+          dateTimeToString( vStDtFmttd, str_LogFileNmeFmtStr, now());
+          vStFleNme := str_LogFilePath+ vStDtFmttd+ '.txt';
+          Result:= Self.saveToFile( vStFleNme, aDoAppend);
 
 End;
 
@@ -225,9 +323,147 @@ Begin
 End;
 
 
-
-
           { tHelpObj }  // and associates :)
+
+Procedure
+          tHelpObj.paintFilledRect( aHDc: hDc; aTabRect: tRect; aColor: tColor); StdCall;
+Var
+          vhBrush                           : hBrush;
+          vtRe1                             : tRect;
+
+Begin
+          vtRe1:= aTabRect;
+
+          vhBrush:= createSolidBrush( longInt( aColor).toColorRef());
+          fillRect( ahDc, vtRe1, vhBrush);
+          deleteObject( vhBrush);
+
+End;
+
+Procedure
+          tHelpObj.paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+Var
+          vtRe1                             : tRect;
+
+Begin
+          vtRe1:= aTabRect;
+
+          // lights, top+left
+          paintFilledRect( aHDc, vtRe1, ccol_TabLight);
+
+          // shadows, bottom+ right
+          vtRe1.Top += 1;                              // leave a light slot
+          vtRe1.Left+= 1;
+
+          paintFilledRect( aHDc, vtRe1, ccol_TabShadow);
+
+          // empore, centered
+          vtRe1.Width := vtRe1.Width - 1;              // also leave a shadow slot
+          vtRe1.Height:= vtRe1.Height- 1;
+
+          If ( Not aIsSel)
+             Then
+             Begin
+                  paintFilledRect( aHDc, vtRe1, ccol_TabEmporeUnSel);
+             End
+          Else
+             Begin
+                  paintFilledRect( aHDc, vtRe1, ccol_TabEmporeSlctd);
+          End;
+End;
+
+Procedure
+          tHelpObj.prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
+Var
+          vtLgFnt                           : tLogFont;
+Begin
+          vtLgFnt.lfHeight        := intFontHeight;
+          vtLgFnt.lfWidth         := intFontWidth;
+
+          vtLgFnt.lfEscapement    := 0;
+          vtLgFnt.lfOrientation   := 0;
+
+          If ( tpLeft= aTabPos)
+             Then
+             Begin
+                  vtLgFnt.lfEscapement    := 900;
+                  vtLgFnt.lfOrientation   := 900;
+          End;
+          If ( tpRight= aTabPos)
+             Then
+             Begin
+                  vtLgFnt.lfEscapement    := 2700;
+                  vtLgFnt.lfOrientation   := 2700;
+          End;
+
+          vtLgFnt.lfWeight        := FW_NORMAL;
+          vtLgFnt.lfItalic        := 0;
+          vtLgFnt.lfUnderLine     := 0;
+          vtLgFnt.lfStrikeOut     := 0;
+          vtLgFnt.lfCharSet       := DEFAULT_CHARSET;
+          vtLgFnt.lfOutPrecision  := OUT_DEFAULT_PRECIS;
+          vtLgFnt.lfClipPrecision := CLIP_DEFAULT_PRECIS;
+          vtLgFnt.lfQuality       := CLEARTYPE_QUALITY;
+          vtLgFnt.lfPitchAndFamily:= VARIABLE_PITCH;
+          vtLgFnt.lfFaceName      := cstr_TabFontName;
+
+          aOutLF                  :=  vtLgFnt;
+
+End;
+
+Procedure
+          tHelpObj.drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
+Var
+
+          vtRe1                             : tRect;
+          vStTxt                            : String;
+
+Begin
+          vtRe1 := aTabRect;
+          vStTxt:= aTabText;
+
+          If ( Not aIsSel)
+             Then
+             Begin
+                  setBkColor( aHDc, longInt( ccol_TabEmporeUnSel).toColorRef());
+                  SetTextColor( aHDc, longInt( ccol_TabFontUnSel).toColorRef());
+             End
+          Else
+             Begin
+                  vtRe1.Left:= vtRe1.Left+ 2;
+                  vtRe1.Top:= vtRe1.Top+ 1;
+                  vtRe1.Width:= vtRe1.Width- 2;
+                  vtRe1.Height:= vtRe1.Height- 1;
+
+                  setBkColor( aHDc, longInt( ccol_TabEmporeSlctd).toColorRef());
+                  SetTextColor( aHDc, longInt( ccol_TabFontSlctd).toColorRef());
+          End;
+
+
+          If ( tpLeft= aTabPos)
+             Then
+             Begin
+                  SetTextAlign( aHDc, VTA_CENTER);
+                  vtRe1.Left  := vtRe1.Left  + ( intFontHeight Div 3);
+                  vtRe1.Bottom:= vtRe1.Bottom+ ( intFontWidth  *   2);
+                  drawText    ( aHDc, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_SINGLELINE Or DT_VCENTER Or DT_NOCLIP);
+             End
+          Else
+             If ( tpRight= aTabPos)
+                Then
+                Begin
+                     SetTextAlign  ( aHDc, VTA_CENTER);
+                     vtRe1.Left  := vtRe1.Left  + ( intFontHeight *   1)+ ( intFontHeight Div 3);
+                     vtRe1.Bottom:= vtRe1.Bottom+ ( intFontWidth  *   2);
+                     drawText      ( aHDc, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_SINGLELINE Or DT_VCENTER Or DT_NOCLIP);
+                End
+             Else    // top or bottom
+                Begin
+                     vtRe1.Top += 1;
+                     drawText( aHDc, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_CENTER Or DT_VCENTER Or DT_SINGLELINE Or DT_NOCLIP);
+
+          End;
+End;
 
 Procedure
           tHelpObj.paintTabs( aHWnd: hWND); StdCall;
@@ -236,19 +472,21 @@ Var
           vtPs1                             : winDOwS.tPaintStruct;
 
           vtRe1                             : tRect;
+
           vhDc1                             : hDc;
-          vhBrush                           : hBrush;
 
           vLoIdx                            : longInt;
           vLoOne                            : longInt;
           vLRsTabCnt                        : lResult;
 
           vTCitm                            : TC_ITEM;
-
           vStTxt                            : String;
 
+          vtLgFnt                           : tLogFont;
           vthFont                           : hFont;
+          vtTbPos                           : tTabPosition;
 
+          vBoIsSel                          : boolEan;
 
 Begin
           vTCitm.pszText          := getMem( 256);
@@ -267,25 +505,11 @@ Begin
 
           getClientRect( aHwnd, vtRe1);
 
-          vhBrush                 := createSolidBrush( colorToRGB( clBtnFace));
-          fillRect( vhDc1, vtRe1, vhBrush);
-          deleteObject( vhBrush);
+          paintFilledRect( vhDc1, vtRe1, colorToRgb( clBtnFace));
 
-          vtLgFnt.lfHeight        := 14;
-          vtLgFnt.lfWidth         := 6;
-          vtLgFnt.lfEscapement    := 0;
-          vtLgFnt.lfOrientation   := 0;
-          vtLgFnt.lfWeight        := FW_NORMAL;
-          vtLgFnt.lfItalic        := 0;
-          vtLgFnt.lfUnderLine     := 0;
-          vtLgFnt.lfStrikeOut     := 0;
-          vtLgFnt.lfCharSet       := DEFAULT_CHARSET;
-          vtLgFnt.lfOutPrecision  := OUT_DEFAULT_PRECIS;
-          vtLgFnt.lfClipPrecision := CLIP_DEFAULT_PRECIS;
-          vtLgFnt.lfQuality       := CLEARTYPE_QUALITY;
-          vtLgFnt.lfPitchAndFamily:= VARIABLE_PITCH;
-          vtLgFnt.lfFaceName      := 'Tahoma'#0;
+          vtTbPos                 := getTabPositionByHandle( aHWnd);
 
+          prepareLogFont( vtTbPos, vtLgFnt);
           vthFont                 := createFontIndirect( vtLgFnt);
           selectObject( vhDc1, vthFont);
 
@@ -295,54 +519,22 @@ Begin
                    TabCtrl_GetItem( aHwnd, vLoOne, vTCitm);
                    TabCtrl_GetItemRect( aHwnd, vLoOne, vtRe1);
 
-                   vhBrush:= createSolidBrush( $00FFFFFF.toColorRef());
-                   fillRect( vhDc1, vtRe1, vhBrush);
-                   deleteObject( vhBrush);
-
-                   vtRe1.Top += 1;
-                   vtRe1.Left+= 1;
-                   vhBrush:= createSolidBrush( $00999975.toColorRef());
-                   fillRect( vhDc1, vtRe1, vhBrush);
-                   deleteObject( vhBrush);
-
-                   vtRe1.Width := vtRe1.Width - 1;
-                   vtRe1.Height:= vtRe1.Height- 1;
-
-                   If ( vLoIdx<> vLoOne)
-                      Then
-                      Begin
-                           vhBrush:= createSolidBrush( $00E7E8A8.toColorRef());
-                           fillRect( vhDc1, vtRe1, vhBrush);
-                           deleteObject( vhBrush);
-                           setBkColor( vhDc1, $00E7E8A8.toColorRef());
-                           SetTextColor( vhDc1, $00FF0000);
-                      End
-                   Else
-                      Begin
-                           vhBrush:= createSolidBrush( $00FF0000);
-                           fillRect( vhDc1, vtRe1, vhBrush);
-                           deleteObject( vhBrush);
-
-                           vtRe1.Left:= vtRe1.Left+ 2;
-                           vtRe1.Top:= vtRe1.Top+ 1;
-                           vtRe1.Width:= vtRe1.Width- 2;
-                           vtRe1.Height:= vtRe1.Height- 1;
-
-                           setBkColor( vhDc1, $00FF0000);
-                           SetTextColor( vhDc1, $00E7E8A8.toColorRef());
-                   End;
+                   vBoIsSel:= ( vLoIdx= vLoOne);
 
                    vStTxt:= vTCitm.pszText;
-                   selectObject( vhDc1, vthFont);
-                   vtRe1.Top+= 1;
 
-                   DrawText( vhDc1, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_CENTER Or DT_VCENTER Or DT_SINGLELINE Or DT_NOCLIP);
+                   paintTabRect( vhDc1, vtRe1, vBoIsSel);
+                   drawTabText ( vhDc1, vtTbPos, vStTxt, vtRe1, vBoIsSel);
 
-                   vtRe1.Top  -= 1;
-
-                   If ( vLoIdx= vLoOne)
+                   If vBoIsSel
                       Then
-                      drawFocusRect( vhDc1, vtRe1);
+                      Begin
+                           vtRe1.Top   += 2;
+                           vtRe1.Left  += 2;
+                           vtRe1.Width := vtRe1.Width -2;
+                           vtRe1.Height:= vtRe1.Height-2;
+                           drawFocusRect( vhDc1, vtRe1);
+                   End;
 
           End;
           deleteObject( vthFont);
@@ -350,28 +542,6 @@ Begin
           freeMem( vTCitm.pszText);
 End;
 
-
-
-Function  // loggas little helper
-          _formatMsg4Log( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): String; StdCall;
-Var
-          vStHwnd                           : String;
-          vStWMsg                           : String;
-          vStwPrm                           : String;
-          vStlPrm                           : String;
-          vStDtT                            : String;
-
-Begin
-          vStHwnd:= aHWnd.toString();
-          vStWMsg:= iu_WinMessages.getWinMsgName( tWinMessages( aMsg));
-          vStwPrm:= aWParam.toString();
-          vStlPrm:= aLParam.toString();
-
-          vStDtT := now().toString( 1, 2, 3, 0, 4, 5, 6, 7);
-
-          Result := vStDtT+ #9+ 'hWnd => '+ vStHwnd+ ' - Msg => '+ vStWMsg+ ' - wPrm => '+ vStwPrm+ ' - lPrm => '+ vStlPrm;
-
-End;
 
 
 Function
@@ -402,7 +572,7 @@ Begin
 End;
 
 Function
-          enumChildWindowsProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
+          findSysTabCtrlProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
 Const
           cLoBuf                            = 1024;
 Var
@@ -415,6 +585,8 @@ Var
           vLoIdx                            : longInt;
           vtSrcEdCur                        : tSourceEditorInterface;
           vLoCnt                            : longInt;
+
+          //vtTbPos                           : tTabPosition;
 
 Begin
           _nOp( [ aHwnd, aLParam]);
@@ -437,10 +609,11 @@ Begin
              Then
              Begin
                   vStClsNme:= pChar( @aocClsNme);
-                  If ( 'SysTabControl32'= vStClsNme)
+                  If ( cstr_TABCTRL_WINCLS_NAME= vStClsNme)
                      Then
                      Begin
                           ho_Obj.tcHwnd:= aHwnd;
+
                           TabCtrl_SetPadding( aHwnd, 20, 4); // this makes the tabs more comfortable
 
                           ho_Obj.oldWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
@@ -484,6 +657,44 @@ Begin
           End;
 End;
 
+Function
+          tHelpObj.getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
+Var
+          vLoRes                            : longInt;
+Begin
+          Result:= tpTop;
+
+          If ( ( 0= aHwndSTC) Or ( hWnd( -1)= aHwndSTC))
+             Then
+             Exit;
+
+          vLoRes:= winDOwS.getWindowLong( aHwndSTC, GWL_STYLE);
+          If ( ( TCS_VERTICAL And vLoRes)<> 0)
+             Then
+             Begin
+                  If ( ( TCS_RIGHT And vLoRes)<> 0)
+                     Then
+                     Begin
+                          Result:= tpRight;
+                     End
+                  Else
+                     Begin
+                          Result:= tpLeft;
+                  End;
+             End
+          Else
+             Begin
+                  If ( ( TCS_BOTTOM And vLoRes)<> 0)
+                     Then
+                     Begin
+                          Result:= tpBottom;
+                  End;
+
+          End;
+
+End;
+
+
 Procedure
           tHelpObj.startTimer( aSender: tObject);
 Var
@@ -510,7 +721,7 @@ Begin
                       Then
                       continue;
 
-                   enumChildWindows( vtHWndOne, @enumChildWindowsProc, 0);
+                   enumChildWindows( vtHWndOne, @findSysTabCtrlProc, 0);
 
                    break;
 
@@ -559,8 +770,10 @@ End;
 Constructor
           tHelpObj.create();
 Begin
-          tmrStart   := Nil;
-          tcHwnd     := 0;
+          tmrStart      := Nil;
+          tcHwnd        := 0;
+          intFontHeight := 14;
+          intFontWidth  := 6;
 
           dwProcessId:= getCurrentProcessId();
           If ( 0= dwProcessId)
