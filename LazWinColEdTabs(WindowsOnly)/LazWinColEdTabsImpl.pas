@@ -53,6 +53,8 @@ Uses
           ,
           IDEWindowIntf
           ,
+          IDEOptEditorIntf
+          ,
           graPhics
           ,
           iu_WinMessages
@@ -70,7 +72,7 @@ Const
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.1';
+          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.3';
 
 Type
 
@@ -95,24 +97,37 @@ Type
 
           End;
 
+          { tHTypeHelperTcItem }
+
+          tHTypeHelperTcItem                = Type Helper For TcItem
+
+             Class Function                 initIalize  ( aTextMem: Word; aMask: Word): TcItem; Static;
+             Class Procedure                deInitIalize( Var aVarItem: TcItem); Static;
+
+          End;
+
+
 
 
           { tHelpObj }
 
-
           tHelpObj                          = Class( tObject)
+
+          Type
+
+             tRGBColor                      = $000000..$FFFFFF;
 
           Const
 
-             ccol_TabLight                  : tColor= clWhite;
-             ccol_TabShadow                 : tColor= $999975;
+             ccol_TabLight                  : tRGBColor= clWhite;
+             ccol_TabShadow                 : tRGBColor= $999975;
 
-             ccol_TabEmporeUnSel            : tColor= $E7E8A8;
+             ccol_TabEmporeUnSel            : tRGBColor= $E7E8A8;
 
-             ccol_TabEmporeSlctd            : tColor= $0000FF;
+             ccol_TabEmporeSlctd            : tRGBColor= $0000FF;
 
-             ccol_TabFontUnSel              : tColor= $0000FF;
-             ccol_TabFontSlctd              : tColor= $E7E8A8;
+             ccol_TabFontUnSel              : tRGBColor= $0000FF;
+             ccol_TabFontSlctd              : tRGBColor= $E7E8A8;
 
              cstr_TabFontName               : String= 'Tahoma'#0;
 
@@ -120,10 +135,8 @@ Type
           Private
 
              tcHwnd                         : hWnd;
-             oldWDP                         : LONG_PTR;
+             orgWDP                         : LONG_PTR;
              dwProcessId                    : dWord;
-
-             //bln_ShdMsg                     : boolEan;
 
              tmrStart                       : extCtrls.tTimer;
 
@@ -132,10 +145,11 @@ Type
 
           Protected
 
-             Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aColor: tColor); StdCall;
+             Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
              Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
              Procedure                      drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
+             Procedure                      condDrawFocusRct( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      paintTabs( aHWnd: hWND); StdCall;
 
              Procedure                      startTimer( aSender: tObject);
@@ -143,10 +157,11 @@ Type
              Function                       getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
 
              Procedure                      init();
+             Procedure                      deInit();
 
           Public
 
-             Procedure                      aboutAddInn( aSender: tObject);
+             Procedure                      addInnAction( aSender: tObject);
 
              Constructor                    create();
           End;
@@ -192,9 +207,9 @@ Procedure
 Var
           imcCmd_ABTABT                     : tIDEMenuCommand;
 Begin
-          imcCmd_ABTABT    := registerOneCmd( SABOUT_ADDINN, SABOUT_ADDINN_IDEMenuCaption, @ho_Obj.aboutAddInn);
+          imcCmd_ABTABT    := registerOneCmd( SABOUT_ADDINN, SABOUT_ADDINN_IDEMenuCaption, @ho_Obj.addInnAction);
 
-          imcCmd_ABTABT.Enabled:= False;  // later for multi window and reinit etc.
+          imcCmd_ABTABT.Enabled:= True; // False;  // later for multi window and reinit etc.
 
 End;
 
@@ -308,6 +323,7 @@ Begin
 
 End;
 
+
           { tHTypeHelperLong }
 
 Function
@@ -322,11 +338,41 @@ Begin
                    ;
 End;
 
+          { tHTypeHelperTcItem }
+
+Class Function
+          tHTypeHelperTcItem.initIalize( aTextMem: Word; aMask: Word): TcItem;
+Begin
+          // prevent "does not seem to be initialized"
+          Result.mask:= 0;
+
+          fillChar( Result, sizeOf( TcItem), 0);
+
+          Result.pszText          := getMem( 256);
+          Result.cchTextMax       := ( aTextMem- 1);
+          Result.mask             := aMask;  // TCIF_TEXT
+          Result.lParam           := 0;
+
+End;
+
+Class Procedure
+          tHTypeHelperTcItem.deInitIalize( Var aVarItem: TcItem);
+Begin
+          If ( Nil<> aVarItem.pszText)
+             Then
+             Begin
+                  Try
+                     freeMem( aVarItem.pszText);
+                  Except End;
+          End;
+          fillChar( aVarItem, sizeOf( TcItem), 0);
+End;
+
 
           { tHelpObj }  // and associates :)
 
 Procedure
-          tHelpObj.paintFilledRect( aHDc: hDc; aTabRect: tRect; aColor: tColor); StdCall;
+          tHelpObj.paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
 Var
           vhBrush                           : hBrush;
           vtRe1                             : tRect;
@@ -334,7 +380,7 @@ Var
 Begin
           vtRe1:= aTabRect;
 
-          vhBrush:= createSolidBrush( longInt( aColor).toColorRef());
+          vhBrush:= createSolidBrush( longInt( aRGBColor).toColorRef());
           fillRect( ahDc, vtRe1, vhBrush);
           deleteObject( vhBrush);
 
@@ -466,6 +512,27 @@ Begin
 End;
 
 Procedure
+          tHelpObj.condDrawFocusRct( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+Var
+
+          vtRe1                             : tRect;
+Begin
+          vtRe1 := aTabRect;
+
+          If aIsSel
+             Then
+             Begin
+                  vtRe1.Top   += 2;
+                  vtRe1.Left  += 2;
+                  vtRe1.Width := vtRe1.Width -2;
+                  vtRe1.Height:= vtRe1.Height-2;
+                  drawFocusRect( aHDc, vtRe1);
+          End;
+
+End;
+
+
+Procedure
           tHelpObj.paintTabs( aHWnd: hWND); StdCall;
 Var
 
@@ -489,10 +556,7 @@ Var
           vBoIsSel                          : boolEan;
 
 Begin
-          vTCitm.pszText          := getMem( 256);
-          vTCitm.cchTextMax       := 255;
-          vTCitm.mask             := TCIF_TEXT;
-          vTCitm.lParam           := 0;
+          vTCitm:= TcItem.initIalize( 256, TCIF_TEXT);
 
           vLRsTabCnt              := TabCtrl_GetItemCount( aHWnd);
           vLoIdx                  := TabCtrl_GetCurSel( aHwnd);
@@ -526,20 +590,13 @@ Begin
                    paintTabRect( vhDc1, vtRe1, vBoIsSel);
                    drawTabText ( vhDc1, vtTbPos, vStTxt, vtRe1, vBoIsSel);
 
-                   If vBoIsSel
-                      Then
-                      Begin
-                           vtRe1.Top   += 2;
-                           vtRe1.Left  += 2;
-                           vtRe1.Width := vtRe1.Width -2;
-                           vtRe1.Height:= vtRe1.Height-2;
-                           drawFocusRect( vhDc1, vtRe1);
-                   End;
-
+                   condDrawFocusRct( vhDc1, vtRe1, vBoIsSel);
           End;
+
           deleteObject( vthFont);
           endPaint( aHWnd, vtPs1);
-          freeMem( vTCitm.pszText);
+          TcItem.deInitIalize( vTCitm);
+          //freeMem( vTCitm.pszText);
 End;
 
 
@@ -564,10 +621,10 @@ Begin
                   Exit;
           End;
 
-          If ( 0<> ho_Obj.oldWDP)
+          If ( 0<> ho_Obj.orgWDP)
              Then
              {$warnings off} {$hints off}
-             Result:= CallWindowProcW( WndProc( ho_Obj.oldWDP), aHWnd, aMsg, aWParam, aLParam);
+             Result:= CallWindowProcW( WndProc( ho_Obj.orgWDP), aHWnd, aMsg, aWParam, aLParam);
              {$warnings on}  {$hints on}
 End;
 
@@ -616,7 +673,7 @@ Begin
 
                           TabCtrl_SetPadding( aHwnd, 20, 4); // this makes the tabs more comfortable
 
-                          ho_Obj.oldWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
+                          ho_Obj.orgWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
 
                           {$warnings off} {$hints off}
                           vPoOldWP                := LONG_PTR( @_wndProc);
@@ -700,7 +757,7 @@ Procedure
 Var
           vtHWndOne                         : hWnd;
           vIn1                              : intEger;
-
+          //vStClsNme                         : String;
 Begin
           _nOp( [ aSender]);
           tmrStart.Enabled:= False;
@@ -713,9 +770,14 @@ Begin
                   Exit;
           End;
 
+          //IDEOptEditorIntf.
+
           For vIn1:= 0 To SrcEditorIntf.SourceEditorManagerIntf.SourceWindowCount- 1
               Do
               Begin
+                   //vStClsNme:= SourceEditorManagerIntf.SourceWindows[ vIn1].ClassName;
+                   //showMessage( vStClsNme);
+
                    vtHWndOne:= SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1].Handle;
                    If Not IsWindowVisible( vtHWndOne)
                       Then
@@ -731,7 +793,7 @@ End;
 
 
 Procedure
-          tHelpObj.aboutAddInn( aSender: tObject);
+          tHelpObj.addInnAction( aSender: tObject);
 Var
           vStMsg                            : String;
 Begin
@@ -741,7 +803,10 @@ Begin
           vStMsg:= '(Re-)Aktivieren für aktive Editorfenster ?';
           If ( mrYes= messageDlg( 'LazWinColEdTabs', vStMsg, tMsgDlgType.mtInformation, [ tMsgDlgBtn.mbYes, tMsgDlgBtn.mbClose] , 0))
              Then
-             init();
+             Begin
+                  deInit();
+                  init();
+          End;
           {$ELSE}
           vStMsg:= 'This add-in is only intended for use with Windows!;
           messageDlg( 'LazWinColEdTabs', vStMsg, tMsgDlgType.mtWarning    , [ tMsgDlgBtn.mbCancel], 0);
@@ -754,7 +819,7 @@ End;
 Procedure
           tHelpObj.init();
 Begin
-          oldWDP             := 0;
+          orgWDP             := 0;
 
           IF ( Nil= tmrStart)
              Then
@@ -764,8 +829,21 @@ Begin
           tmrStart.OnTimer   := @startTimer;
           tmrStart.Enabled   := True;
 
+End;
+
+Procedure
+          tHelpObj.deInit();
+Begin
+          If ( 0<> orgWDP) And ( 0<> tcHwnd)
+             Then
+             Try
+                setWindowLongPtr( tcHwnd, GWLP_WNDPROC, orgWDP);
+                orgWDP:= 0;
+                tcHwnd:= 0;
+             Except End;
 
 End;
+
 
 Constructor
           tHelpObj.create();

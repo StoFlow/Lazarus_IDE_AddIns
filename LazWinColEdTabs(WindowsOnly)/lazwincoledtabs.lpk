@@ -20,7 +20,7 @@
     <Description Value="Only for Windows Lazarus!
 Also first usable version but still with limitations and restrictions (no multi-window support, no re-initialization)"/>
     <License Value="see licence.md"/>
-    <Version Release="2"/>
+    <Version Release="3"/>
     <Files>
       <Item>
         <Filename Value="LazWinColEdTabsImpl.pas"/>
