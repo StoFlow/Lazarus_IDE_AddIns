@@ -72,7 +72,7 @@ Const
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.3';
+          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.4';
 
 Type
 
@@ -85,7 +85,7 @@ Type
              str_LogFileNmeFmtStr           : String= 'yyyy-mm-dd';
 
              Function                       saveToFile( aFileName: String; aDoAppend: boolEan= False): boolEan;
-             Function                       logString ( aDoAppend: boolEan= False): boolEan;
+             Function                       logString ( aDoAppend: boolEan= True; aTimePfx: boolEan= True; aEOLSfx: boolEan= True): boolEan;
 
           End;
 
@@ -143,6 +143,8 @@ Type
              intFontHeight                  : intEger;
              intFontWidth                   : intEger;
 
+             tpPosition                     : tTabPosition;
+
           Protected
 
              Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
@@ -152,11 +154,17 @@ Type
              Procedure                      condDrawFocusRct( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      paintTabs( aHWnd: hWND); StdCall;
 
+             Procedure                      replaceWinProc();
              Procedure                      startTimer( aSender: tObject);
+
+             Procedure                      checkOptionsChanged();
+             Procedure                      afterIDEOptionsWritten( aSender: tObject; aDoRestore: Boolean);
+             //Procedure                      afterIDEOptionsRead   ( aSender: tObject);
+
 
              Function                       getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
 
-             Procedure                      init();
+             Procedure                      init( aWaitTime: dWord= 500);
              Procedure                      deInit();
 
           Public
@@ -207,9 +215,27 @@ Procedure
 Var
           imcCmd_ABTABT                     : tIDEMenuCommand;
 Begin
+
           imcCmd_ABTABT    := registerOneCmd( SABOUT_ADDINN, SABOUT_ADDINN_IDEMenuCaption, @ho_Obj.addInnAction);
 
           imcCmd_ABTABT.Enabled:= True; // False;  // later for multi window and reinit etc.
+
+          If ( Nil= ho_Obj)
+             Then
+             Begin
+                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  exit;
+          End;
+          ho_Obj.init();
+          //If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
+          //   Then
+          //   showMessage( 'Nil= IDEEditorOptions') // timer ivl too short ?
+          //Else
+          //   Begin
+          //        IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @ho_Obj.afterIDEOptionsWritten, False);
+          //        IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterRead ( @ho_Obj.afterIDEOptionsRead, False);
+          //End;
+
 
 End;
 
@@ -310,16 +336,31 @@ Begin
 End;
 
 Function
-          tHTypeHelperString.logString ( aDoAppend: boolEan= False): boolEan;
+          tHTypeHelperString.logString ( aDoAppend: boolEan= True; aTimePfx: boolEan= True; aEOLSfx: boolEan= True): boolEan;
 Var
           vStDtFmttd                        : String;
           vStFleNme                         : String;
+
+          vStDtPfx                          : String;
+          vStEolSfx                         : String;
+
 Begin
-          exit;  // remove to do some logging in a file, if removedm it might be lead to a crash of Lazarus
-          vStDtFmttd:= '';
+          exit;  // remove to do some logging into a file - if heavily used, it might lead to a crash of the Lazarus !!!
+          vStDtFmttd  := '';
           dateTimeToString( vStDtFmttd, str_LogFileNmeFmtStr, now());
-          vStFleNme := str_LogFilePath+ vStDtFmttd+ '.txt';
-          Result:= Self.saveToFile( vStFleNme, aDoAppend);
+          vStFleNme   := str_LogFilePath+ vStDtFmttd+ '.txt';
+
+          vStDtPfx    := '';
+          If ( aTimePfx)
+             Then
+             vStDtPfx := now().toString( 1, 2, 3, 0, 4, 5, 6, 7)+ #9;
+
+          vStEolSfx   := '';
+          If ( aEOLSfx)
+             Then
+             vStEolSfx:= LineEnding;
+
+          Result      := ( vStDtPfx+ Self+ vStEolSfx).saveToFile( vStFleNme, aDoAppend);
 
 End;
 
@@ -551,7 +592,7 @@ Var
 
           vtLgFnt                           : tLogFont;
           vthFont                           : hFont;
-          vtTbPos                           : tTabPosition;
+          //vtTbPos                           : tTabPosition;
 
           vBoIsSel                          : boolEan;
 
@@ -571,9 +612,10 @@ Begin
 
           paintFilledRect( vhDc1, vtRe1, colorToRgb( clBtnFace));
 
-          vtTbPos                 := getTabPositionByHandle( aHWnd);
+          //vtTbPos                 := getTabPositionByHandle( aHWnd);
 
-          prepareLogFont( vtTbPos, vtLgFnt);
+          //prepareLogFont( vtTbPos, vtLgFnt);
+          prepareLogFont( tpPosition, vtLgFnt);
           vthFont                 := createFontIndirect( vtLgFnt);
           selectObject( vhDc1, vthFont);
 
@@ -588,7 +630,8 @@ Begin
                    vStTxt:= vTCitm.pszText;
 
                    paintTabRect( vhDc1, vtRe1, vBoIsSel);
-                   drawTabText ( vhDc1, vtTbPos, vStTxt, vtRe1, vBoIsSel);
+                   //drawTabText ( vhDc1, vtTbPos, vStTxt, vtRe1, vBoIsSel);
+                   drawTabText ( vhDc1, tpPosition, vStTxt, vtRe1, vBoIsSel);
 
                    condDrawFocusRct( vhDc1, vtRe1, vBoIsSel);
           End;
@@ -596,7 +639,6 @@ Begin
           deleteObject( vthFont);
           endPaint( aHWnd, vtPs1);
           TcItem.deInitIalize( vTCitm);
-          //freeMem( vTCitm.pszText);
 End;
 
 
@@ -643,8 +685,6 @@ Var
           vtSrcEdCur                        : tSourceEditorInterface;
           vLoCnt                            : longInt;
 
-          //vtTbPos                           : tTabPosition;
-
 Begin
           _nOp( [ aHwnd, aLParam]);
 
@@ -655,10 +695,7 @@ Begin
                   exit;
           End;
 
-          vTCitm.pszText   := getMem( 256);
-          vTCitm.cchTextMax:= 255;
-          vTCitm.mask      := TCIF_TEXT;
-          vTCitm.lParam    := 0;
+          vTCitm:= TCITEM.initIalize( 256, TCIF_TEXT);
 
           Result:= True;
           vLoCNLen:= getClassName( aHwnd, @aocClsNme, cLoBuf);
@@ -712,6 +749,8 @@ Begin
 
                   End;
           End;
+          TcItem.deInitIalize( vTCitm);
+
 End;
 
 Function
@@ -753,14 +792,12 @@ End;
 
 
 Procedure
-          tHelpObj.startTimer( aSender: tObject);
+          tHelpObj.replaceWinProc();
 Var
           vtHWndOne                         : hWnd;
           vIn1                              : intEger;
-          //vStClsNme                         : String;
+
 Begin
-          _nOp( [ aSender]);
-          tmrStart.Enabled:= False;
 
           If Not assigned( SrcEditorIntf.SourceEditorManagerIntf)
              Then
@@ -770,13 +807,18 @@ Begin
                   Exit;
           End;
 
-          //IDEOptEditorIntf.
+          If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
+             Then
+             showMessage( 'Nil= IDEEditorOptions') // timer ivl too short ?
+          Else
+             Begin
+                  IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @afterIDEOptionsWritten, False);
+                  //IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterRead ( @afterIDEOptionsRead, False);
+          End;
 
           For vIn1:= 0 To SrcEditorIntf.SourceEditorManagerIntf.SourceWindowCount- 1
               Do
               Begin
-                   //vStClsNme:= SourceEditorManagerIntf.SourceWindows[ vIn1].ClassName;
-                   //showMessage( vStClsNme);
 
                    vtHWndOne:= SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1].Handle;
                    If Not IsWindowVisible( vtHWndOne)
@@ -788,6 +830,20 @@ Begin
                    break;
 
           End;
+
+End;
+
+
+Procedure
+          tHelpObj.startTimer( aSender: tObject);
+
+Begin
+          _nOp( [ aSender]);
+          tmrStart.Enabled:= False;
+
+          tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
+
+          replaceWinProc();
 
 End;
 
@@ -805,7 +861,7 @@ Begin
              Then
              Begin
                   deInit();
-                  init();
+                  init( 0);
           End;
           {$ELSE}
           vStMsg:= 'This add-in is only intended for use with Windows!;
@@ -817,7 +873,7 @@ Begin
 End;
 
 Procedure
-          tHelpObj.init();
+          tHelpObj.init( aWaitTime: dWord= 500);
 Begin
           orgWDP             := 0;
 
@@ -825,9 +881,17 @@ Begin
              Then
              tmrStart        := tTimer.create( Nil);
 
-          tmrStart.Interval  := 500;
-          tmrStart.OnTimer   := @startTimer;
-          tmrStart.Enabled   := True;
+          tmrStart.Enabled   := False;
+
+          If ( 0< aWaitTime)
+             Then
+             Begin
+                  tmrStart.Interval  := aWaitTime;
+                  tmrStart.OnTimer   := @startTimer;
+                  tmrStart.Enabled   := True;
+             End
+          Else
+             startTimer( Nil);
 
 End;
 
@@ -844,14 +908,46 @@ Begin
 
 End;
 
+Procedure
+          tHelpObj.checkOptionsChanged();
+Var
+          vtTbPos                           : tTabPosition;
+Begin
+
+          If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
+             Then
+             Exit;
+
+          Try
+             vtTbPos:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
+             If ( tpPosition<> vtTbPos)
+                Then
+                Begin
+                     tpPosition:= vtTbPos;
+                     deInit();
+                     init( 500);
+             End;
+          Except End;
+End;
+
+Procedure
+          tHelpObj.afterIDEOptionsWritten( aSender: tObject; aDoRestore: Boolean);
+Begin
+          _nOp( [ aSender, aDoRestore]);
+
+          checkOptionsChanged();
+End;
+
 
 Constructor
           tHelpObj.create();
 Begin
-          tmrStart      := Nil;
-          tcHwnd        := 0;
-          intFontHeight := 14;
-          intFontWidth  := 6;
+
+          tmrStart            := Nil;
+          tcHwnd              := 0;
+          intFontHeight       := 14;
+          intFontWidth        := 6;
+          intEger( tpPosition):= -1;
 
           dwProcessId:= getCurrentProcessId();
           If ( 0= dwProcessId)
@@ -861,7 +957,7 @@ Begin
                   exit;
           End;
 
-          init();
+          //init();
 End;
 
 
