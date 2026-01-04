@@ -2,12 +2,13 @@
 
 Examples and helpers for the Lazarus IDE
 
-This add-in is a first shot, that is working for me (see folder "doc").
+This add-in is an experimental one, it's working for me (see folder "doc").
 But it still has limitations and restrictions :
 
-- No multi-editor-window support
+- ~~No multi-editor-window support~~
 - ~~Only manual reinitialization support (via Tools-command)~~
 - ~~Tabs on left or on right are not being displayed correctly~~
 - Font, dimensions and colors are fixed in source code
 - ~~Changing settings for the pages in tools-options requires restarting of lazarus~~
 - ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
+- Manual reinitialization required after loading another project

@@ -57,6 +57,8 @@ Uses
           ,
           graPhics
           ,
+          fOrms
+          ,
           iu_WinMessages
           ,
           iu_DateTime
@@ -72,7 +74,7 @@ Const
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.4';
+          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.5';
 
 Type
 
@@ -107,7 +109,45 @@ Type
           End;
 
 
+          { tSrcWindowData }
 
+          tSrcWindowData                    = Class ( tCollectionItem )
+
+          Protected
+
+             Procedure                      wndCloseSink( aSender: tObject; Var aVarCloseAction: tCloseAction);
+
+          Public
+
+             SrcForm                        : tSourceEditorWindowInterface;
+             orgClEv                        : tCloseEvent;
+             ptHWnd                         : hWnd;
+             tcHwnd                         : hWnd;
+             orgWDP                         : LONG_PTR;
+
+             Procedure                      deInit();
+
+             Procedure                      init( aSrcWin: tSourceEditorWindowInterface);
+
+          End;
+
+          { tSrcWindowDataColl }
+
+          tSrcWindowDataColl                = Class ( tCollection )
+
+          Protected
+
+             Function                       _fnd_by_hwnd( aHwnd: hWnd): tSrcWindowData;
+
+          Public
+
+             Constructor                    create ();
+
+             Property                       SrcWindowData[ aHwnd: hWnd]: tSrcWindowData Read _fnd_by_hwnd;
+
+             Procedure                      deInit();
+
+          End;
 
           { tHelpObj }
 
@@ -134,9 +174,9 @@ Type
 
           Private
 
-             tcHwnd                         : hWnd;
-             orgWDP                         : LONG_PTR;
              dwProcessId                    : dWord;
+
+             dwSrcWinCnt                    : -1.. $FFFFFF;
 
              tmrStart                       : extCtrls.tTimer;
 
@@ -145,7 +185,14 @@ Type
 
              tpPosition                     : tTabPosition;
 
+             orgOnCrtMthd                   : tCreateIDEWindowMethod;
+             orgOnCrtProc                   : tCreateIDEWindowProc;
+
           Protected
+
+             swdcSrcWndDatas                : tSrcWindowDataColl;
+             swcSrcNbk                      : tIDEWindowCreator;
+
 
              Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
              Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
@@ -154,13 +201,12 @@ Type
              Procedure                      condDrawFocusRct( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      paintTabs( aHWnd: hWND); StdCall;
 
-             Procedure                      replaceWinProc();
+             Procedure                      replaceOneWinProc( aSrcWin: tSourceEditorWindowInterface);
+             Procedure                      replaceWinProcs();
              Procedure                      startTimer( aSender: tObject);
 
              Procedure                      checkOptionsChanged();
              Procedure                      afterIDEOptionsWritten( aSender: tObject; aDoRestore: Boolean);
-             //Procedure                      afterIDEOptionsRead   ( aSender: tObject);
-
 
              Function                       getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
 
@@ -173,6 +219,8 @@ Type
 
              Constructor                    create();
           End;
+
+
 
 
 Var
@@ -196,6 +244,7 @@ Var
           Key                               : tIDEShortCut;
           Cat                               : tIdeCommandCategory;
           Cmd                               : tIdeCommand;
+
 Begin
           Result:= Nil;
 
@@ -208,6 +257,7 @@ Begin
              Result:= RegisterIDEMenuCommand( itmSecondaryTools, aCmdId, aCmdCaption, aObjMthd, Nil, Cmd, AnsiLowerCase( aCmdId));
 
           Except End;
+
 End;
 
 Procedure
@@ -218,7 +268,7 @@ Begin
 
           imcCmd_ABTABT    := registerOneCmd( SABOUT_ADDINN, SABOUT_ADDINN_IDEMenuCaption, @ho_Obj.addInnAction);
 
-          imcCmd_ABTABT.Enabled:= True; // False;  // later for multi window and reinit etc.
+          imcCmd_ABTABT.Enabled:= True;
 
           If ( Nil= ho_Obj)
              Then
@@ -226,16 +276,8 @@ Begin
                   messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
                   exit;
           End;
-          ho_Obj.init();
-          //If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
-          //   Then
-          //   showMessage( 'Nil= IDEEditorOptions') // timer ivl too short ?
-          //Else
-          //   Begin
-          //        IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @ho_Obj.afterIDEOptionsWritten, False);
-          //        IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterRead ( @ho_Obj.afterIDEOptionsRead, False);
-          //End;
 
+          ho_Obj.init();
 
 End;
 
@@ -275,6 +317,132 @@ Begin
                     'Bottom= '+ aRect.Bottom.toString()+ ', '+
                     'Width = '+ aRect.Width .toString()+ ', '+
                     'Height= '+ aRect.Height.toString();
+
+End;
+
+Function
+          _wndProc ( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): lResult; StdCall;
+Var
+          vtSrcWndDta                       : tSrcWindowData;
+Begin
+
+          If ( Nil= ho_Obj)
+             Then
+             Begin
+                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  exit;
+          End;
+
+          If ( winDOwS.WM_Paint= aMsg)
+             Then
+             Begin
+                  ho_Obj.paintTabs( aHWnd);
+
+                  Result:= 0;
+                  Exit;
+          End;
+
+          vtSrcWndDta:= ho_Obj.swdcSrcWndDatas.SrcWindowData[ aHWnd];
+
+          If ( Nil<> vtSrcWndDta) And ( 0<> vtSrcWndDta.orgWDP)
+             Then
+             {$warnings off} {$hints off}
+             Result:= callWindowProcW( WndProc( vtSrcWndDta.orgWDP), aHWnd, aMsg, aWParam, aLParam);
+             {$warnings on}  {$hints on}
+End;
+
+Function
+          findSysTabCtrlProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
+Const
+          cLoBuf                            = 1024;
+Var
+          aocClsNme                         : Array[ 0.. cLoBuf] Of Char;
+          vLoCNLen                          : longInt;
+          vStClsNme                         : String;
+          vPoOldWP                          : LONG_PTR;
+          vtReWin                           : tRect;
+          vTCitm                            : TC_ITEM;
+          vLoIdx                            : longInt;
+          vtSrcEdCur                        : tSourceEditorInterface;
+          vLoCnt                            : longInt;
+
+          vtSrcWndDta                       : tSrcWindowData;
+
+Begin
+          _nOp( [ aHwnd, aLParam]);
+
+          If ( Nil= ho_Obj)
+             Then
+             Begin
+                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  exit;
+          End;
+
+          If ( 0= aLParam)
+             Then
+             Begin
+                  messageDlg( 'LazWinColEdTabs', 'aLParam is 0', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  exit;
+          End;
+
+          vtSrcWndDta:= tSrcWindowData( aLParam);
+
+          vTCitm:= TCITEM.initIalize( 256, TCIF_TEXT);
+
+          Result:= True;
+          vLoCNLen:= getClassName( aHwnd, @aocClsNme, cLoBuf);
+          If ( 0< vLoCNLen)
+             Then
+             Begin
+                  vStClsNme:= pChar( @aocClsNme);
+                  If ( cstr_TABCTRL_WINCLS_NAME= vStClsNme)
+                     Then
+                     Begin
+                          Result:= False;
+
+                          vtSrcWndDta.tcHwnd:= aHwnd;
+
+                          TabCtrl_SetPadding( aHwnd, 20, 4); // this makes the tabs more comfortable
+
+                          vtSrcWndDta.orgWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
+
+                          {$warnings off} {$hints off}
+                          vPoOldWP                := LONG_PTR( @_wndProc);
+                          {$warnings on}  {$hints on}
+                          setWindowLongPtr( aHwnd, GWLP_WNDPROC, vPoOldWP);
+
+                          // prevent "does not seem to be initialized"
+                          vtReWin.Top:= 0;
+
+                          // the trick (part 1) below makes the tabcontrol redraw
+                          getClientRect( aHwnd, vtReWin);
+                          invalidateRect( aHwnd, vtReWin, True);
+
+                          vLoCnt                  := TabCtrl_GetItemCount( aHwnd);
+                          If ( 0< vLoCnt)
+                             Then
+                             Begin
+                                  vLoIdx          := TabCtrl_GetCurSel( aHwnd);
+                                  TabCtrl_GetItem( aHwnd, vLoCnt- 1, vTCitm);
+                                  TabCtrl_SetItem( aHwnd, vLoCnt- 1, vTCitm);
+                                  TabCtrl_SetCurSel( aHwnd, vLoIdx);
+                                  TabCtrl_setCurFocus( aHwnd, vLoIdx);
+                          End;
+
+                          getClientRect( aHwnd, vtReWin);
+                          invalidateRect( aHwnd, vtReWin, True);
+
+                          vtSrcEdCur              := vtSrcWndDta.SrcForm.ActiveEditor;
+                          vLoCnt                  := vtSrcWndDta.SrcForm.Count;
+
+                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcWndDta.SrcForm[ vLoCnt- 1];
+                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcWndDta.SrcForm[ 0];
+
+                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcEdCur;
+
+                  End;
+          End;
+          vTCitm.deInitIalize( vTCitm);
 
 End;
 
@@ -409,6 +577,125 @@ Begin
           fillChar( aVarItem, sizeOf( TcItem), 0);
 End;
 
+
+          { tSrcWindowData }
+
+Procedure
+          tSrcWindowData.deInit();
+Begin
+          If (  assigned( SrcForm))
+             Then
+             Try
+                SrcForm.OnClose:= orgClEv;
+             Except End;
+
+          If ( 0<> orgWDP) And ( 0<> tcHwnd)
+             Then
+             Try
+                setWindowLongPtr( tcHwnd, GWLP_WNDPROC, orgWDP);
+                orgWDP  := 0;
+                tcHwnd  := 0;
+                orgClEv := Nil;
+                SrcForm := Nil;
+             Except End;
+          Try
+             free();
+          Except End;
+End;
+
+Procedure
+          tSrcWindowData.wndCloseSink( aSender: tObject; Var aVarCloseAction: tCloseAction);
+Begin
+
+          If ( assigned( orgClEv))
+             Then
+             Try
+                orgClEv( aSender, aVarCloseAction);
+             Except End;
+
+          If ( caFree= aVarCloseAction)
+             Then
+             Begin
+                  deInit();
+          End;
+End;
+
+
+Procedure
+          tSrcWindowData.init( aSrcWin: tSourceEditorWindowInterface);
+Begin
+          If ( Nil= aSrcWin)
+             Or
+             ( 0  = aSrcWin.Handle)
+             Then
+             Begin
+                  Try
+                     free();
+                  Except End;
+                  Exit;
+          End;
+
+          SrcForm          := aSrcWin;
+          ptHWnd           := SrcForm.Handle;
+          orgWDP           := 0;
+          tcHwnd           := 0;
+          orgClEv          := SrcForm.OnClose;
+
+          aSrcWin.OnClose  := @wndCloseSink;
+
+          enumChildWindows( ptHWnd, @findSysTabCtrlProc, lParam( Self));
+End;
+
+
+          { tSrcWindowDataColl }
+
+Constructor
+          tSrcWindowDataColl.create ();
+Begin
+          inHerited create( tSrcWindowData);
+
+End;
+
+Function
+          tSrcWindowDataColl._fnd_by_hwnd( aHwnd: hWnd): tSrcWindowData;
+Var
+          one_itm                           : tCollectionItem;
+          one_dta                           : tSrcWindowData;
+
+Begin
+
+          Result:= Nil;
+          For one_itm In Self
+              Do
+              Begin
+                   one_dta:= one_itm As tSrcWindowData;
+                   If ( aHwnd= one_dta.tcHwnd)
+                      Then
+                      Begin
+                           Result:= one_dta;
+                           break;
+                   End;
+                   one_dta:= Nil;
+          End;
+End;
+
+Procedure
+          tSrcWindowDataColl.deInit();
+Var
+          one_itm                           : tCollectionItem;
+          one_dta                           : tSrcWindowData;
+
+Begin
+
+          For one_itm In Self
+              Do
+              Begin
+                   one_dta:= one_itm As tSrcWindowData;
+                   one_dta.deInit();
+                   one_dta:= Nil;
+          End;
+
+End;
 
           { tHelpObj }  // and associates :)
 
@@ -592,29 +879,24 @@ Var
 
           vtLgFnt                           : tLogFont;
           vthFont                           : hFont;
-          //vtTbPos                           : tTabPosition;
 
           vBoIsSel                          : boolEan;
 
 Begin
+          // prevent "does not seem to be initialized"
+          vtPs1.hdc               := 0;
+          vtRe1.Top               := 0;
+          vhDc1                   := winDOwS.beginPaint( aHWnd, vtPs1);
+
           vTCitm:= TcItem.initIalize( 256, TCIF_TEXT);
 
           vLRsTabCnt              := TabCtrl_GetItemCount( aHWnd);
           vLoIdx                  := TabCtrl_GetCurSel( aHwnd);
 
-          // prevent "does not seem to be initialized"
-          vtPs1.hdc               := 0;
-          vtRe1.Top               := 0;
-
-          vhDc1                   := winDOwS.beginPaint( aHWnd, vtPs1);
-
           getClientRect( aHwnd, vtRe1);
 
           paintFilledRect( vhDc1, vtRe1, colorToRgb( clBtnFace));
 
-          //vtTbPos                 := getTabPositionByHandle( aHWnd);
-
-          //prepareLogFont( vtTbPos, vtLgFnt);
           prepareLogFont( tpPosition, vtLgFnt);
           vthFont                 := createFontIndirect( vtLgFnt);
           selectObject( vhDc1, vthFont);
@@ -630,7 +912,6 @@ Begin
                    vStTxt:= vTCitm.pszText;
 
                    paintTabRect( vhDc1, vtRe1, vBoIsSel);
-                   //drawTabText ( vhDc1, vtTbPos, vStTxt, vtRe1, vBoIsSel);
                    drawTabText ( vhDc1, tpPosition, vStTxt, vtRe1, vBoIsSel);
 
                    condDrawFocusRct( vhDc1, vtRe1, vBoIsSel);
@@ -638,120 +919,12 @@ Begin
 
           deleteObject( vthFont);
           endPaint( aHWnd, vtPs1);
-          TcItem.deInitIalize( vTCitm);
+          vTCitm.deInitIalize( vTCitm);
 End;
 
 
 
-Function
-          _wndProc ( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): lResult; StdCall;
-Begin
 
-          If ( Nil= ho_Obj)
-             Then
-             Begin
-                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
-                  exit;
-          End;
-
-          If ( winDOwS.WM_Paint= aMsg)
-             Then
-             Begin
-                  ho_Obj.paintTabs( aHWnd);
-
-                  Result:= 0;
-                  Exit;
-          End;
-
-          If ( 0<> ho_Obj.orgWDP)
-             Then
-             {$warnings off} {$hints off}
-             Result:= CallWindowProcW( WndProc( ho_Obj.orgWDP), aHWnd, aMsg, aWParam, aLParam);
-             {$warnings on}  {$hints on}
-End;
-
-Function
-          findSysTabCtrlProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
-Const
-          cLoBuf                            = 1024;
-Var
-          aocClsNme                         : Array[ 0.. cLoBuf] Of Char;
-          vLoCNLen                          : longInt;
-          vStClsNme                         : String;
-          vPoOldWP                          : LONG_PTR;
-          vtReWin                           : tRect;
-          vTCitm                            : TC_ITEM;
-          vLoIdx                            : longInt;
-          vtSrcEdCur                        : tSourceEditorInterface;
-          vLoCnt                            : longInt;
-
-Begin
-          _nOp( [ aHwnd, aLParam]);
-
-          If ( Nil= ho_Obj)
-             Then
-             Begin
-                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
-                  exit;
-          End;
-
-          vTCitm:= TCITEM.initIalize( 256, TCIF_TEXT);
-
-          Result:= True;
-          vLoCNLen:= getClassName( aHwnd, @aocClsNme, cLoBuf);
-          If ( 0< vLoCNLen)
-             Then
-             Begin
-                  vStClsNme:= pChar( @aocClsNme);
-                  If ( cstr_TABCTRL_WINCLS_NAME= vStClsNme)
-                     Then
-                     Begin
-                          ho_Obj.tcHwnd:= aHwnd;
-
-                          TabCtrl_SetPadding( aHwnd, 20, 4); // this makes the tabs more comfortable
-
-                          ho_Obj.orgWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
-
-                          {$warnings off} {$hints off}
-                          vPoOldWP                := LONG_PTR( @_wndProc);
-                          {$warnings on}  {$hints on}
-                          setWindowLongPtr( aHwnd, GWLP_WNDPROC, vPoOldWP);
-
-                          // prevent "does not seem to be initialized"
-                          vtReWin.Top:= 0;
-
-                          // the trick (part 1) below makes the tabcontrol redraw
-                          getClientRect( aHwnd, vtReWin);
-                          invalidateRect( aHwnd, vtReWin, True);
-
-                          vLoCnt                  := TabCtrl_GetItemCount( aHwnd);
-                          If ( 0< vLoCnt)
-                             Then
-                             Begin
-                                  vLoIdx          := TabCtrl_GetCurSel( aHwnd);
-                                  TabCtrl_GetItem( aHwnd, vLoCnt- 1, vTCitm);
-                                  TabCtrl_SetItem( aHwnd, vLoCnt- 1, vTCitm);
-                                  TabCtrl_SetCurSel( aHwnd, vLoIdx);
-                                  TabCtrl_setCurFocus( aHwnd, vLoIdx);
-                          End;
-
-                          getClientRect( aHwnd, vtReWin);
-                          invalidateRect( aHwnd, vtReWin, True);
-
-                          // the trick (part 2) below makes the tabcontrol redraw even in multiline mode
-                          vtSrcEdCur              := SrcEditorIntf.SourceEditorManagerIntf.ActiveEditor;
-                          vLoCnt                  := SrcEditorIntf.SourceEditorManagerIntf.SourceEditorCount;
-
-                          SrcEditorIntf.SourceEditorManagerIntf.ActiveEditor:= SrcEditorIntf.SourceEditorManagerIntf.SourceEditors[ vLoCnt- 1];
-                          SrcEditorIntf.SourceEditorManagerIntf.ActiveEditor:= SrcEditorIntf.SourceEditorManagerIntf.SourceEditors[ 0];
-
-                          SrcEditorIntf.SourceEditorManagerIntf.ActiveEditor:= vtSrcEdCur;
-
-                  End;
-          End;
-          TcItem.deInitIalize( vTCitm);
-
-End;
 
 Function
           tHelpObj.getTabPositionByHandle( aHwndSTC: hWnd): tTabPosition;
@@ -790,13 +963,24 @@ Begin
 
 End;
 
+Procedure
+          tHelpObj.replaceOneWinProc( aSrcWin: tSourceEditorWindowInterface);
+Var
+          vtSrvWndDta                       : tSrcWindowData;
+Begin
+          If ( Nil= aSrcWin)
+             Then
+             Exit;
+
+          vtSrvWndDta:= swdcSrcWndDatas.add() As tSrcWindowData;
+          vtSrvWndDta.init( aSrcWin);
+
+End;
 
 Procedure
-          tHelpObj.replaceWinProc();
+          tHelpObj.replaceWinProcs();
 Var
-          vtHWndOne                         : hWnd;
           vIn1                              : intEger;
-
 Begin
 
           If Not assigned( SrcEditorIntf.SourceEditorManagerIntf)
@@ -813,23 +997,11 @@ Begin
           Else
              Begin
                   IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @afterIDEOptionsWritten, False);
-                  //IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterRead ( @afterIDEOptionsRead, False);
           End;
 
           For vIn1:= 0 To SrcEditorIntf.SourceEditorManagerIntf.SourceWindowCount- 1
               Do
-              Begin
-
-                   vtHWndOne:= SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1].Handle;
-                   If Not IsWindowVisible( vtHWndOne)
-                      Then
-                      continue;
-
-                   enumChildWindows( vtHWndOne, @findSysTabCtrlProc, 0);
-
-                   break;
-
-          End;
+              replaceOneWinProc( SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1]);
 
 End;
 
@@ -843,7 +1015,7 @@ Begin
 
           tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
 
-          replaceWinProc();
+          replaceWinProcs();
 
 End;
 
@@ -872,16 +1044,17 @@ Begin
 
 End;
 
+
 Procedure
           tHelpObj.init( aWaitTime: dWord= 500);
 Begin
-          orgWDP             := 0;
 
           IF ( Nil= tmrStart)
              Then
              tmrStart        := tTimer.create( Nil);
 
           tmrStart.Enabled   := False;
+
 
           If ( 0< aWaitTime)
              Then
@@ -898,13 +1071,7 @@ End;
 Procedure
           tHelpObj.deInit();
 Begin
-          If ( 0<> orgWDP) And ( 0<> tcHwnd)
-             Then
-             Try
-                setWindowLongPtr( tcHwnd, GWLP_WNDPROC, orgWDP);
-                orgWDP:= 0;
-                tcHwnd:= 0;
-             Except End;
+          swdcSrcWndDatas.deInit();
 
 End;
 
@@ -939,12 +1106,20 @@ Begin
 End;
 
 
+
+
 Constructor
           tHelpObj.create();
 Begin
+          orgOnCrtMthd        := Nil;
+          orgOnCrtProc        := Nil;
 
+          swcSrcNbk           := Nil;
+          dwSrcWinCnt         := -1;
+
+          swdcSrcWndDatas     := tSrcWindowDataColl.create();
           tmrStart            := Nil;
-          tcHwnd              := 0;
+
           intFontHeight       := 14;
           intFontWidth        := 6;
           intEger( tpPosition):= -1;
