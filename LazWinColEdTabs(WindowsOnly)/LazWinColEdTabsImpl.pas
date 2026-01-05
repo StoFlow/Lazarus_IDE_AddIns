@@ -59,6 +59,8 @@ Uses
           ,
           fOrms
           ,
+          proJect
+          ,
           iu_WinMessages
           ,
           iu_DateTime
@@ -74,7 +76,7 @@ Const
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.5';
+          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.6';
 
 Type
 
@@ -187,6 +189,7 @@ Type
 
              orgOnCrtMthd                   : tCreateIDEWindowMethod;
              orgOnCrtProc                   : tCreateIDEWindowProc;
+
 
           Protected
 
@@ -618,6 +621,10 @@ Begin
              Begin
                   deInit();
           End;
+
+          If ( Nil<> ho_Obj)
+             Then
+             ho_Obj.init();  // this "trick" might help to reInit after loading another project
 End;
 
 
@@ -1013,9 +1020,17 @@ Begin
           _nOp( [ aSender]);
           tmrStart.Enabled:= False;
 
-          tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
-
-          replaceWinProcs();
+          // if no project is assigned - then the project dialog might be loaded after "close project" - so we'll wait
+          If ( Not assigned( Project1))
+             Then
+             Begin
+                  init( 2500);  // wait somewhat longer, cause the dlg might be open a long time
+             End
+          Else
+             Begin
+                  tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
+                  replaceWinProcs();
+          End;
 
 End;
 
@@ -1054,7 +1069,6 @@ Begin
              tmrStart        := tTimer.create( Nil);
 
           tmrStart.Enabled   := False;
-
 
           If ( 0< aWaitTime)
              Then
@@ -1104,7 +1118,6 @@ Begin
 
           checkOptionsChanged();
 End;
-
 
 
 

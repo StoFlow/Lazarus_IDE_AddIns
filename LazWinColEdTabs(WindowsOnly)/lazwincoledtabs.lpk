@@ -20,7 +20,7 @@
     <Description Value="Only for Windows Lazarus!
 Still with limitations and restrictions."/>
     <License Value="see licence.md"/>
-    <Version Release="5"/>
+    <Version Release="6"/>
     <Files>
       <Item>
         <Filename Value="LazWinColEdTabsImpl.pas"/>
@@ -39,7 +39,7 @@ Still with limitations and restrictions."/>
     </Files>
     <RequiredPkgs>
       <Item>
-        <PackageName Value="LazDebuggerFp"/>
+        <PackageName Value="IdeProject"/>
       </Item>
       <Item>
         <PackageName Value="IDEIntf"/>

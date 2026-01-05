@@ -1,6 +1,6 @@
 # Lazarus_IDE_AddIns
 
-Examples and helpers for the Lazarus IDE
+## Lazarus for Windows Colored Editor Tabs (LazWinColEdTabs)
 
 This add-in is an experimental one, it's working for me (see folder "doc").
 But it still has limitations and restrictions :
@@ -11,4 +11,5 @@ But it still has limitations and restrictions :
 - Font, dimensions and colors are fixed in source code
 - ~~Changing settings for the pages in tools-options requires restarting of lazarus~~
 - ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
-- Manual reinitialization required after loading another project
+- ~~Manual reinitialization required after loading another project~~
+- The "magic" is done by using a timer - this is always ugly :/ - would need (to know) some events 8-0
