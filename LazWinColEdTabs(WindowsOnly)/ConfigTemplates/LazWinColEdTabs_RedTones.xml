@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <UI>
+    <Colors TabLight="16777215" TabShadow="$800000" TabEmporeSlctd="$FF4040" TabEmporeUnSel="$FFC0C0" TabFontSlctd="$FFFFFF" TabFontUnSel="0"/>
+    <Font TabFontName="Tahoma&#x0;" TabFontHeight="14" TabFontWidth="6"/>
+    <Padding TabPaddingX="20" TabPaddingY="4"/>
+  </UI>
+</CONFIG>

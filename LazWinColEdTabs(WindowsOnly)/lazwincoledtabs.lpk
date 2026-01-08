@@ -20,7 +20,7 @@
     <Description Value="Only for Windows Lazarus!
 Still with limitations and restrictions."/>
     <License Value="see licence.md"/>
-    <Version Release="6"/>
+    <Version Release="7"/>
     <Files>
       <Item>
         <Filename Value="LazWinColEdTabsImpl.pas"/>
@@ -28,13 +28,25 @@ Still with limitations and restrictions."/>
         <UnitName Value="LazWinColEdTabsImpl"/>
       </Item>
       <Item>
-        <Filename Value="iu_winmessages.pas"/>
+        <Filename Value="iu_WinMessages.pas"/>
         <AddToUsesPkgSection Value="False"/>
         <UnitName Value="iu_WinMessages"/>
       </Item>
       <Item>
         <Filename Value="iu_DateTime.pas"/>
         <UnitName Value="iu_DateTime"/>
+      </Item>
+      <Item>
+        <Filename Value="iu_LWCETConf.pas"/>
+        <UnitName Value="iu_LWCETConf"/>
+      </Item>
+      <Item>
+        <Filename Value="su_LWCETConf.pas"/>
+        <UnitName Value="su_LWCETConf"/>
+      </Item>
+      <Item>
+        <Filename Value="iu_BGRColor.pas"/>
+        <UnitName Value="iu_BGRColor"/>
       </Item>
     </Files>
     <RequiredPkgs>

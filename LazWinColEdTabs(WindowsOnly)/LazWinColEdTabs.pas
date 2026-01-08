@@ -8,7 +8,8 @@ unit LazWinColEdTabs;
 interface
 
 uses
-  LazWinColEdTabsImpl, iu_DateTime, LazarusPackageIntf;
+  LazWinColEdTabsImpl, iu_DateTime, iu_LWCETConf, su_LWCETConf, iu_BGRColor, 
+  LazarusPackageIntf;
 
 implementation
 

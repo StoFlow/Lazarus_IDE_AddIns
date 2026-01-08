@@ -53,6 +53,10 @@ Uses
           ,
           IDEWindowIntf
           ,
+          ideOptionDefs
+          ,
+          idecmdline
+          ,
           IDEOptEditorIntf
           ,
           graPhics
@@ -64,6 +68,12 @@ Uses
           iu_WinMessages
           ,
           iu_DateTime
+          ,
+          iu_LWCETConf
+          ,
+          su_LWCETConf
+          ,
+          iu_BGRColor
           ;
 
           {$R LazWinColEdTabs_Images.res}
@@ -76,7 +86,7 @@ Const
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.6';
+          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.7';
 
 Type
 
@@ -90,14 +100,6 @@ Type
 
              Function                       saveToFile( aFileName: String; aDoAppend: boolEan= False): boolEan;
              Function                       logString ( aDoAppend: boolEan= True; aTimePfx: boolEan= True; aEOLSfx: boolEan= True): boolEan;
-
-          End;
-
-          { tHTypeHelperLong }
-
-          tHTypeHelperLong                  = Type Helper( tLongIntHelper) For longInt
-
-             Function                       toColorRef(): longInt;
 
           End;
 
@@ -155,26 +157,10 @@ Type
 
           tHelpObj                          = Class( tObject)
 
-          Type
-
-             tRGBColor                      = $000000..$FFFFFF;
-
-          Const
-
-             ccol_TabLight                  : tRGBColor= clWhite;
-             ccol_TabShadow                 : tRGBColor= $999975;
-
-             ccol_TabEmporeUnSel            : tRGBColor= $E7E8A8;
-
-             ccol_TabEmporeSlctd            : tRGBColor= $0000FF;
-
-             ccol_TabFontUnSel              : tRGBColor= $0000FF;
-             ccol_TabFontSlctd              : tRGBColor= $E7E8A8;
-
-             cstr_TabFontName               : String= 'Tahoma'#0;
-
 
           Private
+
+             theConfig                      : tLWCETConfig;
 
              dwProcessId                    : dWord;
 
@@ -182,14 +168,7 @@ Type
 
              tmrStart                       : extCtrls.tTimer;
 
-             intFontHeight                  : intEger;
-             intFontWidth                   : intEger;
-
              tpPosition                     : tTabPosition;
-
-             orgOnCrtMthd                   : tCreateIDEWindowMethod;
-             orgOnCrtProc                   : tCreateIDEWindowProc;
-
 
           Protected
 
@@ -197,7 +176,7 @@ Type
              swcSrcNbk                      : tIDEWindowCreator;
 
 
-             Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
+             Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tBGRColor); StdCall;
              Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
              Procedure                      drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
@@ -405,7 +384,7 @@ Begin
 
                           vtSrcWndDta.tcHwnd:= aHwnd;
 
-                          TabCtrl_SetPadding( aHwnd, 20, 4); // this makes the tabs more comfortable
+                          TabCtrl_SetPadding( aHwnd, ho_Obj.theConfig.bte_TabPaddingX, ho_Obj.theConfig.bte_TabPaddingY); // this makes the tabs more comfortable
 
                           vtSrcWndDta.orgWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
 
@@ -535,20 +514,6 @@ Begin
 
 End;
 
-
-          { tHTypeHelperLong }
-
-Function
-          tHTypeHelperLong.toColorRef(): longInt;
-
-Begin
-          Result:= ( ( Self And $0000FF) Shl 16)
-                   Or
-                   ( ( Self And $00FF00)       )
-                   Or
-                   ( ( Self And $FF0000) Shr 16)
-                   ;
-End;
 
           { tHTypeHelperTcItem }
 
@@ -707,7 +672,7 @@ End;
           { tHelpObj }  // and associates :)
 
 Procedure
-          tHelpObj.paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tRGBColor); StdCall;
+          tHelpObj.paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tBGRColor); StdCall;
 Var
           vhBrush                           : hBrush;
           vtRe1                             : tRect;
@@ -715,7 +680,7 @@ Var
 Begin
           vtRe1:= aTabRect;
 
-          vhBrush:= createSolidBrush( longInt( aRGBColor).toColorRef());
+          vhBrush:= createSolidBrush( aRGBColor.toColorRef());
           fillRect( ahDc, vtRe1, vhBrush);
           deleteObject( vhBrush);
 
@@ -730,13 +695,13 @@ Begin
           vtRe1:= aTabRect;
 
           // lights, top+left
-          paintFilledRect( aHDc, vtRe1, ccol_TabLight);
+          paintFilledRect( aHDc, vtRe1, theConfig.col_TabLight);
 
           // shadows, bottom+ right
           vtRe1.Top += 1;                              // leave a light slot
           vtRe1.Left+= 1;
 
-          paintFilledRect( aHDc, vtRe1, ccol_TabShadow);
+          paintFilledRect( aHDc, vtRe1, theConfig.col_TabShadow);
 
           // empore, centered
           vtRe1.Width := vtRe1.Width - 1;              // also leave a shadow slot
@@ -745,11 +710,11 @@ Begin
           If ( Not aIsSel)
              Then
              Begin
-                  paintFilledRect( aHDc, vtRe1, ccol_TabEmporeUnSel);
+                  paintFilledRect( aHDc, vtRe1, theConfig.col_TabEmporeUnSel);
              End
           Else
              Begin
-                  paintFilledRect( aHDc, vtRe1, ccol_TabEmporeSlctd);
+                  paintFilledRect( aHDc, vtRe1, theConfig.col_TabEmporeSlctd);
           End;
 End;
 
@@ -758,8 +723,8 @@ Procedure
 Var
           vtLgFnt                           : tLogFont;
 Begin
-          vtLgFnt.lfHeight        := intFontHeight;
-          vtLgFnt.lfWidth         := intFontWidth;
+          vtLgFnt.lfHeight        := theConfig.int_TabFontHeight;
+          vtLgFnt.lfWidth         := theConfig.int_TabFontWidth;
 
           vtLgFnt.lfEscapement    := 0;
           vtLgFnt.lfOrientation   := 0;
@@ -786,7 +751,8 @@ Begin
           vtLgFnt.lfClipPrecision := CLIP_DEFAULT_PRECIS;
           vtLgFnt.lfQuality       := CLEARTYPE_QUALITY;
           vtLgFnt.lfPitchAndFamily:= VARIABLE_PITCH;
-          vtLgFnt.lfFaceName      := cstr_TabFontName;
+
+          vtLgFnt.lfFaceName      := theConfig.str_TabFontName;
 
           aOutLF                  :=  vtLgFnt;
 
@@ -806,8 +772,8 @@ Begin
           If ( Not aIsSel)
              Then
              Begin
-                  setBkColor( aHDc, longInt( ccol_TabEmporeUnSel).toColorRef());
-                  SetTextColor( aHDc, longInt( ccol_TabFontUnSel).toColorRef());
+                  setBkColor( aHDc, theConfig.col_TabEmporeUnSel.toColorRef());
+                  SetTextColor( aHDc, theConfig.col_TabFontUnSel.toColorRef());
              End
           Else
              Begin
@@ -816,17 +782,17 @@ Begin
                   vtRe1.Width:= vtRe1.Width- 2;
                   vtRe1.Height:= vtRe1.Height- 1;
 
-                  setBkColor( aHDc, longInt( ccol_TabEmporeSlctd).toColorRef());
-                  SetTextColor( aHDc, longInt( ccol_TabFontSlctd).toColorRef());
+                  setBkColor( aHDc, theConfig.col_TabEmporeSlctd.toColorRef());
+                  SetTextColor( aHDc, theConfig.col_TabFontSlctd.toColorRef());
           End;
 
-
+          // the calc's with font height / width are subject to test+change
           If ( tpLeft= aTabPos)
              Then
              Begin
                   SetTextAlign( aHDc, VTA_CENTER);
-                  vtRe1.Left  := vtRe1.Left  + ( intFontHeight Div 3);
-                  vtRe1.Bottom:= vtRe1.Bottom+ ( intFontWidth  *   2);
+                  vtRe1.Left  := vtRe1.Left  + ( theConfig.int_TabFontHeight Div 3);
+                  vtRe1.Bottom:= vtRe1.Bottom+ ( theConfig.int_TabFontWidth  *   2);
                   drawText    ( aHDc, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_SINGLELINE Or DT_VCENTER Or DT_NOCLIP);
              End
           Else
@@ -834,8 +800,8 @@ Begin
                 Then
                 Begin
                      SetTextAlign  ( aHDc, VTA_CENTER);
-                     vtRe1.Left  := vtRe1.Left  + ( intFontHeight *   1)+ ( intFontHeight Div 3);
-                     vtRe1.Bottom:= vtRe1.Bottom+ ( intFontWidth  *   2);
+                     vtRe1.Left  := vtRe1.Left  + ( theConfig.int_TabFontHeight *   1)+ ( theConfig.int_TabFontHeight Div 3);
+                     vtRe1.Bottom:= vtRe1.Bottom+ ( theConfig.int_TabFontWidth  *   2);
                      drawText      ( aHDc, pChar( vStTxt), length( pChar( vStTxt)), vtRe1, DT_SINGLELINE Or DT_VCENTER Or DT_NOCLIP);
                 End
              Else    // top or bottom
@@ -1123,9 +1089,10 @@ End;
 
 Constructor
           tHelpObj.create();
+
 Begin
-          orgOnCrtMthd        := Nil;
-          orgOnCrtProc        := Nil;
+          theConfig           := getConfig();
+          setConfig( theConfig);
 
           swcSrcNbk           := Nil;
           dwSrcWinCnt         := -1;
@@ -1133,8 +1100,6 @@ Begin
           swdcSrcWndDatas     := tSrcWindowDataColl.create();
           tmrStart            := Nil;
 
-          intFontHeight       := 14;
-          intFontWidth        := 6;
           intEger( tpPosition):= -1;
 
           dwProcessId:= getCurrentProcessId();
@@ -1145,7 +1110,7 @@ Begin
                   exit;
           End;
 
-          //init();
+
 End;
 
 
