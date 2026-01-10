@@ -6,8 +6,12 @@
 
 To use one of these config files
 (while the add-inn is installed),
-copy it into the folder
-C:\Users\[username]]\AppData\Local\lazarus
+copy it into the appropriate Lazarus Configs folder
+e.g. :
+C:\lazarus4.0.cfg
+or
+C:\fpcupdeluxe\config_lazarus
+
 and rename it to
 LazWinColEdTabs.xml
 (remove the "_..."- suffix)

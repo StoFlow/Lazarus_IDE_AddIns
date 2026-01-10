@@ -20,7 +20,7 @@
     <Description Value="Only for Windows Lazarus!
 Still with limitations and restrictions."/>
     <License Value="see licence.md"/>
-    <Version Release="7"/>
+    <Version Release="8"/>
     <Files>
       <Item>
         <Filename Value="LazWinColEdTabsImpl.pas"/>
@@ -47,6 +47,14 @@ Still with limitations and restrictions."/>
       <Item>
         <Filename Value="iu_BGRColor.pas"/>
         <UnitName Value="iu_BGRColor"/>
+      </Item>
+      <Item>
+        <Filename Value="frm_edtcfg.lfm"/>
+        <Type Value="LFM"/>
+      </Item>
+      <Item>
+        <Filename Value="frm_edtcfg.pas"/>
+        <UnitName Value="frm_edtcfg"/>
       </Item>
     </Files>
     <RequiredPkgs>

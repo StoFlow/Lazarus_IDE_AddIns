@@ -24,6 +24,8 @@ Implementation
 
 Uses
           ideOptionDefs
+          ,
+          diaLogs
           ;
 
 Function
@@ -100,6 +102,10 @@ Begin
              Then
              Exit;
 
+          If ( Nil= aCfg)
+             Then
+             Exit;
+
           Try
              // colors
              csCfgStg.SetValue( cstr_CfgXMLPathUIColors + cstr_CfgValNmeTabLight       , aCfg.col_TabLight);
@@ -122,6 +128,7 @@ Begin
 
              csCfgStg.writeToDisk();
              Result:= True;
+
           Except
             On E: Exception
                Do

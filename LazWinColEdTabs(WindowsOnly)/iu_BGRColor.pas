@@ -14,9 +14,11 @@ Type
 
           tHTypeHelperBGRColor              = Type Helper For tBGRColor
 
-             Function                       toColorRef(): longInt;
+             Function                       switchLowerBytes(): longInt;
 
           End;
+
+
 
 Const
           ccolWhite                         = $FFFFFF;
@@ -31,7 +33,7 @@ Implementation
           { tHTypeHelperBGRColor }
 
 Function
-          tHTypeHelperBGRColor.toColorRef(): longInt;
+          tHTypeHelperBGRColor.switchLowerBytes(): longInt;
 
 Begin
           Result:= ( ( Self And $0000FF) Shl 16)

@@ -9,7 +9,7 @@ interface
 
 uses
   LazWinColEdTabsImpl, iu_DateTime, iu_LWCETConf, su_LWCETConf, iu_BGRColor, 
-  LazarusPackageIntf;
+  frm_edtcfg, LazarusPackageIntf;
 
 implementation
 

@@ -77,10 +77,20 @@ Type
 
           tLWCETConfig                      = Class( tObject)
 
+          Public
+
+             Type
+                tApplyCallBack              = Procedure ( aSender: tLWCETConfig) Of Object;
+
+          Protected
+
+             acb                            : tApplyCallBack;
+
           Private
 
 
           Public
+
 
              // colors
 
@@ -105,7 +115,15 @@ Type
              bte_TabPaddingX                : Byte     ;
              bte_TabPaddingY                : Byte     ;
 
+
              Constructor                    create();
+             Constructor                    create( aApplyCB: tApplyCallBack);
+
+             Procedure                      assign( aTemplate: tLWCETConfig);
+
+             Function                       clone(): tLWCETConfig;
+
+             Property                       ApplyCB: tApplyCallBack Read acb Write acb;
 
           End;
 
@@ -139,6 +157,57 @@ Begin
           bte_TabPaddingX   := cbte_TabPaddingX    ;
           bte_TabPaddingY   := cbte_TabPaddingY    ;
 
+          ApplyCB           := Nil;
+
+End;
+
+Constructor
+          tLWCETConfig.create( aApplyCB: tApplyCallBack);
+Begin
+          create();
+          ApplyCB           := aApplyCB;
+End;
+
+Procedure
+          tLWCETConfig.assign( aTemplate: tLWCETConfig);
+Begin
+          If Not ( assigned( aTemplate))
+             Then
+             Exit;
+
+          // colors
+
+          col_TabLight      := aTemplate.col_TabLight       ;
+          col_TabShadow     := aTemplate.col_TabShadow      ;
+
+          col_TabEmporeUnSel:= aTemplate.col_TabEmporeUnSel ;
+
+          col_TabEmporeSlctd:= aTemplate.col_TabEmporeSlctd ;
+
+          col_TabFontUnSel  := aTemplate.col_TabFontUnSel   ;
+          col_TabFontSlctd  := aTemplate.col_TabFontSlctd   ;
+
+          // font specific
+
+          str_TabFontName   := aTemplate.str_TabFontName    ;
+          int_TabFontHeight := aTemplate.int_TabFontHeight  ;
+          int_TabFontWidth  := aTemplate.int_TabFontWidth   ;
+
+          // padding
+          bte_TabPaddingX   := aTemplate.bte_TabPaddingX    ;
+          bte_TabPaddingY   := aTemplate.bte_TabPaddingY    ;
+
+          // apply
+          ApplyCB           := aTemplate.ApplyCB;
+
+End;
+
+
+Function
+          tLWCETConfig.clone(): tLWCETConfig;
+Begin
+          Result:= tLWCETConfig.create();
+          Result.assign( Self);
 End;
 
 End.

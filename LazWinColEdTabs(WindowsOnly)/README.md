@@ -3,12 +3,16 @@
 ## Lazarus for Windows Colored Editor Tabs (LazWinColEdTabs)
 
 This add-in is an experimental one, it's working for me (see folder "doc").
+
+- If you miss the buttons as shown in the video(s), then goto Tools->Options->Environment->IDE Coolbar and configure your buttons.
+- The add-inn now has two buttons (even with changed IDs), if you already used the add-inn, also do -"-
+
 But it still has limitations and restrictions :
 
 - ~~No multi-editor-window support~~
 - ~~Only manual reinitialization support (via Tools-command)~~
 - ~~Tabs on left or on right are not being displayed correctly~~
-- Font, dimensions and colors must be changed using customized XML-files (no UI to change)
+- ~~Font, dimensions and colors must be changed using customized XML-files (no UI to change)~~
 - ~~Changing settings for the pages in tools-options requires restarting of lazarus~~
 - ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
 - ~~Manual reinitialization required after loading another project~~

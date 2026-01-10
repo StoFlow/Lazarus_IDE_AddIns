@@ -74,19 +74,23 @@ Uses
           su_LWCETConf
           ,
           iu_BGRColor
+          ,
+          frm_edtcfg
           ;
 
           {$R LazWinColEdTabs_Images.res}
 
 Const
           // command
-          SABOUT_ADDINN                     = 'about_lazwincoledtabs';
+          SREINIT_ADDINN                    = 'reinit_lazwincoledtabs';
+          SEDTCFG_ADDINN                    = 'edtcfg_lazwincoledtabs';
 
           cstr_TABCTRL_WINCLS_NAME          = 'SysTabControl32';
 
 Resourcestring
 
-          SABOUT_ADDINN_IDEMenuCaption      = 'LazWinColEdTabs V 0.0.7';
+          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.8 - ReInit';
+          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.8 - Edit Config';
 
 Type
 
@@ -197,7 +201,11 @@ Type
 
           Public
 
-             Procedure                      addInnAction( aSender: tObject);
+             Procedure                      lwcetReInit( aSender: tObject);
+             Procedure                      lwcetEdtCfg( aSender: tObject);
+
+             Procedure                      cfgApplyCB( aSender: tLWCETConfig);
+
 
              Constructor                    create();
           End;
@@ -207,6 +215,7 @@ Type
 
 Var
           //imcCmd_ABTADI                     : tIDEMenuCommand= Nil;
+          imcCmd_EDTCFG                     : tIDEMenuCommand;
 
           {%H-}ho_Obj                       : tHelpObj= Nil;
           {%H+}
@@ -245,12 +254,17 @@ End;
 Procedure
           Register;
 Var
-          imcCmd_ABTABT                     : tIDEMenuCommand;
+          imcCmd_ONE                        : tIDEMenuCommand;
 Begin
 
-          imcCmd_ABTABT    := registerOneCmd( SABOUT_ADDINN, SABOUT_ADDINN_IDEMenuCaption, @ho_Obj.addInnAction);
+          imcCmd_ONE    := registerOneCmd( SREINIT_ADDINN, SREINIT_ADDINN_IDEMenuCaption, @ho_Obj.lwcetReInit);
 
-          imcCmd_ABTABT.Enabled:= True;
+          imcCmd_ONE.Enabled:= True;
+
+          imcCmd_EDTCFG := registerOneCmd( SEDTCFG_ADDINN, SEDTCFG_ADDINN_IDEMenuCaption, @ho_Obj.lwcetEdtCfg);
+
+          imcCmd_EDTCFG.Enabled:= True;
+
 
           If ( Nil= ho_Obj)
              Then
@@ -680,7 +694,7 @@ Var
 Begin
           vtRe1:= aTabRect;
 
-          vhBrush:= createSolidBrush( aRGBColor.toColorRef());
+          vhBrush:= createSolidBrush( aRGBColor.switchLowerBytes());
           fillRect( ahDc, vtRe1, vhBrush);
           deleteObject( vhBrush);
 
@@ -772,8 +786,8 @@ Begin
           If ( Not aIsSel)
              Then
              Begin
-                  setBkColor( aHDc, theConfig.col_TabEmporeUnSel.toColorRef());
-                  SetTextColor( aHDc, theConfig.col_TabFontUnSel.toColorRef());
+                  setBkColor( aHDc, theConfig.col_TabEmporeUnSel.switchLowerBytes());
+                  SetTextColor( aHDc, theConfig.col_TabFontUnSel.switchLowerBytes());
              End
           Else
              Begin
@@ -782,8 +796,8 @@ Begin
                   vtRe1.Width:= vtRe1.Width- 2;
                   vtRe1.Height:= vtRe1.Height- 1;
 
-                  setBkColor( aHDc, theConfig.col_TabEmporeSlctd.toColorRef());
-                  SetTextColor( aHDc, theConfig.col_TabFontSlctd.toColorRef());
+                  setBkColor( aHDc, theConfig.col_TabEmporeSlctd.switchLowerBytes());
+                  SetTextColor( aHDc, theConfig.col_TabFontSlctd.switchLowerBytes());
           End;
 
           // the calc's with font height / width are subject to test+change
@@ -994,6 +1008,8 @@ Begin
              End
           Else
              Begin
+                  theConfig           := getConfig();
+                  theConfig.ApplyCB   := @Self.cfgApplyCB;
                   tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
                   replaceWinProcs();
           End;
@@ -1002,13 +1018,12 @@ End;
 
 
 Procedure
-          tHelpObj.addInnAction( aSender: tObject);
+          tHelpObj.lwcetReInit( aSender: tObject);
 Var
           vStMsg                            : String;
 Begin
           _nOp( [ aSender]);
 
-          {$IFDEF WINDOWS}
           vStMsg:= '(Re-)Aktivieren für aktive Editorfenster ?';
           If ( mrYes= messageDlg( 'LazWinColEdTabs', vStMsg, tMsgDlgType.mtInformation, [ tMsgDlgBtn.mbYes, tMsgDlgBtn.mbClose] , 0))
              Then
@@ -1016,14 +1031,48 @@ Begin
                   deInit();
                   init( 0);
           End;
-          {$ELSE}
-          vStMsg:= 'This add-in is only intended for use with Windows!;
-          messageDlg( 'LazWinColEdTabs', vStMsg, tMsgDlgType.mtWarning    , [ tMsgDlgBtn.mbCancel], 0);
-          Exit;
-          {$ENDIF}
-
 
 End;
+
+Procedure
+          tHelpObj.CfgApplyCB( aSender: tLWCETConfig);
+Begin
+          If ( Nil= aSender)
+             Then
+             Exit;
+
+          theConfig.assign( aSender);
+          init( 300);
+          setConfig( aSender);
+End;
+
+
+Procedure
+          tHelpObj.lwcetEdtCfg( aSender: tObject);
+Var
+          vtCfg1                            : tLWCETConfig;
+Begin
+          _nOp( [ aSender]);
+
+          Try
+             imcCmd_EDTCFG.Enabled:= False;
+
+             vtCfg1:= theConfig.clone();
+
+             If ( mrOk= tfrm_edtcfg_.exeCute( Nil, vtCfg1))
+                Then
+                Begin
+                     theConfig.assign( vtCfg1);
+                     init( 300);
+                     setConfig( vtCfg1);
+             End;
+             freeAndNil( vtCfg1);
+
+          Except End;
+          imcCmd_EDTCFG.Enabled:= True;
+
+End;
+
 
 
 Procedure
@@ -1091,8 +1140,12 @@ Constructor
           tHelpObj.create();
 
 Begin
-          theConfig           := getConfig();
-          setConfig( theConfig);
+          imcCmd_EDTCFG       := Nil;
+
+          theConfig           := getConfig();       // at this point the cfg might be come from another folder (user-appdata-lazarus)
+          theConfig.ApplyCB   := @Self.cfgApplyCB;
+          //setConfig( theConfig);
+
 
           swcSrcNbk           := Nil;
           dwSrcWinCnt         := -1;
