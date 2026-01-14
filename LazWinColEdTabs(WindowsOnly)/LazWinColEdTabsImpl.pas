@@ -35,6 +35,8 @@ Uses
           ,
           syncObjs
           ,
+          conTrols
+          ,
           extCtrls
           ,
           Dialogs
@@ -65,6 +67,8 @@ Uses
           ,
           proJect
           ,
+          //SynEdit
+          //,
           iu_WinMessages
           ,
           iu_DateTime
@@ -76,6 +80,10 @@ Uses
           iu_BGRColor
           ,
           frm_edtcfg
+          ,
+          LitteBmpMgr
+          ,
+          ExtendedNotebook
           ;
 
           {$R LazWinColEdTabs_Images.res}
@@ -89,8 +97,8 @@ Const
 
 Resourcestring
 
-          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.8 - ReInit';
-          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.8 - Edit Config';
+          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.9 - ReInit';
+          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.9 - Edit Config';
 
 Type
 
@@ -133,6 +141,8 @@ Type
              tcHwnd                         : hWnd;
              orgWDP                         : LONG_PTR;
 
+             intClsblTabIdx                 : intEger;
+
              Procedure                      deInit();
 
              Procedure                      init( aSrcWin: tSourceEditorWindowInterface);
@@ -151,7 +161,7 @@ Type
 
              Constructor                    create ();
 
-             Property                       SrcWindowData[ aHwnd: hWnd]: tSrcWindowData Read _fnd_by_hwnd;
+             Property                       SrcWindowData[ aHwnd: hWnd]: tSrcWindowData Read _fnd_by_hwnd; Default;
 
              Procedure                      deInit();
 
@@ -176,11 +186,16 @@ Type
 
           Protected
 
+             lbmImgs                        : tLitteBmpMgr;
+
              swdcSrcWndDatas                : tSrcWindowDataColl;
              swcSrcNbk                      : tIDEWindowCreator;
 
+             orgWDP                         : LONG_PTR;
+
 
              Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tBGRColor); StdCall;
+             Procedure                      showBmpFromRes( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
              Procedure                      drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
@@ -206,8 +221,13 @@ Type
 
              Procedure                      cfgApplyCB( aSender: tLWCETConfig);
 
+             Procedure                      signalClosableTab( aHwnd: hWnd; aTabIdx: intEger);
+             Procedure                      resetClosableTab ();
+
+             Procedure                      signalCloseTabNow( aHwnd: hWnd; aTabIdx: intEger);
 
              Constructor                    create();
+
           End;
 
 
@@ -317,11 +337,87 @@ Begin
 End;
 
 Function
+          getClientXYFromLParam( aHWnd: hWND; aLParamFromMsg: lParam; Out aOutX: longInt; Out aOutY: longInt): boolEan; StdCall;
+Var
+          vLoX                              : longInt;
+          vLoY                              : longInt;
+          vtPo1                             : tPoInt;
+Begin
+          Result:= False;
+          aOutX := 0;
+          aOutY := 0;
+
+          // where the mouse is pointing at ?
+          vLoX:= GET_X_LPARAM( aLParamFromMsg);
+          vLoY:= GET_Y_LPARAM( aLParamFromMsg);
+
+          vtPo1:= tPoint.create( vLoX, vLoY);
+
+          If screenToClient( aHwnd, vtPo1)
+             Then
+             Begin
+                  aOutX:= vtPo1.X;
+                  aOutY:= vtPo1.Y;
+                  Result:= True;
+          End;
+End;
+
+Function
+          tabRectHitTest( aHWnd: hWND; aLParamFromMsg: lParam; Out aOutTabIdx: intEger): intEger; StdCall;
+Var
+
+          vLoX                              : longInt;
+          vLoY                              : longInt;
+
+          vtRe1                             : tRect;
+
+          vLoIdx                            : longInt;
+          vLoOne                            : longInt;
+          vLRsTabCnt                        : lResult;
+
+
+Begin
+          Result                  := HTNOWHERE;
+          aOutTabIdx              := -1;
+
+          If ( Not getClientXYFromLParam( aHWnd, aLParamFromMsg, vLoX, vLoY))
+             Then
+             Exit;
+
+          // prevent "does not seem to be initialized"
+          vtRe1.Top               := 0;
+
+          vLRsTabCnt              := TabCtrl_GetItemCount( aHWnd);
+          vLoIdx                  := TabCtrl_GetCurSel( aHwnd);
+          _nOp( [ vLoIdx]);
+
+          For vLoOne:= 0 to vLRsTabCnt- 1
+              Do
+              Begin
+                   TabCtrl_GetItemRect( aHwnd, vLoOne, vtRe1);
+
+                   If ( vLoX> vtRe1.Right- 16) And ( vLoX< vtRe1.Right- 2)
+                      And
+                      ( vLoY> vtRe1.Top  +  3) And ( vLoY< vtRe1.Top  + 16)
+                      Then
+                      Begin
+                           aOutTabIdx:= vLoOne;
+                           Result    := HTCLOSE;
+                           'HTCLOSE'.logString();
+                           Exit;
+                   End;
+          End;
+End;
+
+
+Function
           _wndProc ( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): lResult; StdCall;
 Var
           vtSrcWndDta                       : tSrcWindowData;
+          vLoTabIdxClsbl                    : intEger;
 Begin
 
+          //_formatMsg4Log( aHWnd, aMsg, aWParam, aLParam).logString();
           If ( Nil= ho_Obj)
              Then
              Begin
@@ -336,6 +432,45 @@ Begin
 
                   Result:= 0;
                   Exit;
+          End;
+
+          If ( winDOwS.WM_NCHITTEST= aMsg)
+             Then
+             Begin
+                  vLoTabIdxClsbl:= -1;
+
+                  Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
+
+                  If ( HTCLOSE= Result)
+                     Then
+                     Begin
+                          ho_Obj.signalClosableTab( aHWnd, vLoTabIdxClsbl);
+                          Exit;
+                     End
+                  Else
+                     Begin
+                          ho_Obj.resetClosableTab();
+                  End;
+          End;
+
+          If ( winDOwS.WM_NCLBUTTONDOWN= aMsg)
+             Then
+             Begin
+                  vLoTabIdxClsbl:= -1;
+
+                  Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
+
+                  If ( HTCLOSE= Result)
+                     Then
+                     Begin
+                          ho_Obj.signalCloseTabNow( aHWnd, vLoTabIdxClsbl);
+                          Result:= 0;
+                          Exit;
+                  //   End
+                  //Else
+                  //   Begin
+                  //        ho_Obj.resetClosableTab();
+                  End;
           End;
 
           vtSrcWndDta:= ho_Obj.swdcSrcWndDatas.SrcWindowData[ aHWnd];
@@ -441,6 +576,7 @@ Begin
           vTCitm.deInitIalize( vTCitm);
 
 End;
+
 
           { tHTypeHelperString }
 
@@ -575,10 +711,11 @@ Begin
              Then
              Try
                 setWindowLongPtr( tcHwnd, GWLP_WNDPROC, orgWDP);
-                orgWDP  := 0;
-                tcHwnd  := 0;
-                orgClEv := Nil;
-                SrcForm := Nil;
+                intClsblTabIdx := -1;
+                orgWDP         := 0;
+                tcHwnd         := 0;
+                orgClEv        := Nil;
+                SrcForm        := Nil;
              Except End;
           Try
              free();
@@ -621,6 +758,7 @@ Begin
                   Exit;
           End;
 
+          intClsblTabIdx   := -1;
           SrcForm          := aSrcWin;
           ptHWnd           := SrcForm.Handle;
           orgWDP           := 0;
@@ -701,6 +839,49 @@ Begin
 End;
 
 Procedure
+          tHelpObj.showBmpFromRes( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+Var
+          vtBm1                             : Graphics.tBitmap;
+          vtRe1                             : tRect;
+          vtCvs                             : tCanvas;
+Begin
+          vtBm1:= lbmImgs[ 'CLOSE_CROSS_12X12X4'];
+          If ( Nil= vtBm1)
+             Then
+             Begin
+                  showMessage( '( Nil= vtBm1)');
+                  exit;
+          End;
+
+          vtRe1.Left  := aTabRect.Right- 12- 3;
+          vtRe1.Top   := aTabRect.Top      + 3;
+          vtRe1.Width := 12;
+          vtRe1.Height:= 12;
+
+
+          vtCvs       := tCanvas.create();
+          vtCvs.Handle:= aHDc;
+
+          If ( aIsSel)
+             Then
+             vtCvs.Brush .Color:= theConfig.col_TabEmporeSlctd.switchLowerBytes()
+          Else
+             vtCvs.Brush .Color:= theConfig.col_TabEmporeUnSel.switchLowerBytes();
+
+          vtCvs.brushCopy(
+                       vtRe1,
+                       vtBm1,
+                       bounds( 0, 0, vtBm1.Width, vtBm1.Height),
+                       clBlue
+                  );
+
+          vtBm1:= Nil;
+          vtCvs.Handle:= 0;
+          freeAndNil( vtCvs);
+End;
+
+
+Procedure
           tHelpObj.paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
 Var
           vtRe1                             : tRect;
@@ -730,6 +911,7 @@ Begin
              Begin
                   paintFilledRect( aHDc, vtRe1, theConfig.col_TabEmporeSlctd);
           End;
+
 End;
 
 Procedure
@@ -901,6 +1083,7 @@ Begin
                    paintTabRect( vhDc1, vtRe1, vBoIsSel);
                    drawTabText ( vhDc1, tpPosition, vStTxt, vtRe1, vBoIsSel);
 
+                   showBmpFromRes( vhDc1, vtRe1, vBoIsSel);
                    condDrawFocusRct( vhDc1, vtRe1, vBoIsSel);
           End;
 
@@ -908,8 +1091,6 @@ Begin
           endPaint( aHWnd, vtPs1);
           vTCitm.deInitIalize( vTCitm);
 End;
-
-
 
 
 
@@ -990,6 +1171,7 @@ Begin
               Do
               replaceOneWinProc( SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1]);
 
+
 End;
 
 
@@ -1044,6 +1226,74 @@ Begin
           theConfig.assign( aSender);
           init( 300);
           setConfig( aSender);
+End;
+
+Procedure
+          tHelpObj.signalClosableTab( aHwnd: hWnd; aTabIdx: intEger);
+Var
+          vtSrcWndDta                       : tSrcWindowData;
+Begin
+          If ( Nil= swdcSrcWndDatas)
+             Then
+             Exit;
+
+          vtSrcWndDta:= swdcSrcWndDatas[ aHwnd];
+          If ( Nil= vtSrcWndDta)
+             Then
+             Exit;
+
+          vtSrcWndDta.intClsblTabIdx:= aTabIdx;
+
+End;
+
+Procedure
+          tHelpObj.resetClosableTab ();
+Var
+          vtSrcWndDta                       : tCollectionItem;
+Begin
+          If ( Nil= swdcSrcWndDatas)
+             Then
+             Exit;
+
+          For vtSrcWndDta In swdcSrcWndDatas
+              Do
+              tSrcWindowData( vtSrcWndDta).intClsblTabIdx:= -1;
+End;
+
+Procedure
+          tHelpObj.signalCloseTabNow( aHwnd: hWnd; aTabIdx: intEger);
+Var
+          vtSrcWndDta                       : tSrcWindowData;
+          vtCtl1                            : tControl;
+          vIn1                              : intEger;
+Begin
+          If ( Nil= swdcSrcWndDatas)
+             Then
+             Exit;
+
+          vtSrcWndDta:= swdcSrcWndDatas[ aHwnd];
+          If ( Nil= vtSrcWndDta)
+             Then
+             Exit;
+
+          If ( vtSrcWndDta.intClsblTabIdx= aTabIdx)  // #todo : unnecessary if ?
+             Then
+             If ( Nil<> vtSrcWndDta.SrcForm)
+                Then
+                Begin
+                     For vIn1:= 0 To vtSrcWndDta.SrcForm.ControlCount- 1
+                         Do
+                         Begin
+                              vtCtl1:= vtSrcWndDta.SrcForm.Controls[ vIn1];
+                              If vtCtl1 Is tExtendedNotebook // is not a tTabControl but a custom one
+                                 Then
+                                 Begin
+                                      tExtendedNotebook( vtCtl1).DoCloseTabClicked( tExtendedNotebook( vtCtl1).Pages[ aTabIdx]);
+                                      Exit;
+                              End;
+                     End;
+             End;
+
 End;
 
 
@@ -1145,6 +1395,8 @@ Begin
           theConfig           := getConfig();       // at this point the cfg might be come from another folder (user-appdata-lazarus)
           theConfig.ApplyCB   := @Self.cfgApplyCB;
           //setConfig( theConfig);
+
+          lbmImgs             := tLitteBmpMgr.create( [ 'CLOSE_CROSS_8X8X4', 'CLOSE_CROSS_SEL_8X8X4', 'CLOSE_CROSS_12X12X4']);
 
 
           swcSrcNbk           := Nil;

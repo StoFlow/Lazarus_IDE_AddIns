@@ -17,3 +17,4 @@ But it still has limitations and restrictions :
 - ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
 - ~~Manual reinitialization required after loading another project~~
 - The "magic" is done by using a timer - this is always ugly :/ - would need (to know) some events 8-0
+- V 0.0.9 always shows close-buttons for tabs - not configurable and very basic design use previous version if you don't like this

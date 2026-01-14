@@ -39,7 +39,7 @@ Type
           tHTypeHelperLong                  = Type Helper For tColor
 
              Function                       switchLowerBytes(): longInt;
-             Function                       guesContrastColor(): longInt;
+             Function                       guessContrastColor(): longInt;
 
           End;
 
@@ -170,7 +170,7 @@ Begin
 End;
 
 Function
-          tHTypeHelperLong.guesContrastColor(): longInt;
+          tHTypeHelperLong.guessContrastColor(): longInt;
 Begin
           Result:= rgbToColor(
                                255- red  ( Self),
@@ -258,7 +258,7 @@ Begin
           Else
              Begin
                   aCtrl.Color      := coldlg_Edit.Color;
-                  aCtrl.Font.Color := coldlg_Edit.Color.guesContrastColor();
+                  aCtrl.Font.Color := coldlg_Edit.Color.guessContrastColor();
           End;
 End;
 
@@ -358,13 +358,16 @@ Procedure
 Begin
           // colors
           pn_Lights .Color            := theConfig.col_TabLight .switchLowerBytes()                ;
+          pn_Lights .Font.Color       := pn_Lights.Color.guessContrastColor()                      ;
+
           pn_Shadows.Color            := theConfig.col_TabShadow.switchLowerBytes()                ;
+          pn_Shadows.Font.Color       := pn_Shadows.Color.guessContrastColor()                     ;
 
           pn_EmporeOth.Color          := theConfig.col_TabEmporeUnSel.switchLowerBytes()           ;
-          pn_EmporeOth.Font.Color     := pn_EmporeOth.Color.guesContrastColor()                    ;
+          pn_EmporeOth.Font.Color     := pn_EmporeOth.Color.guessContrastColor()                   ;
 
           pn_EmporeSel.Color          := theConfig.col_TabEmporeSlctd.switchLowerBytes()           ;
-          pn_EmporeSel.Font.Color     := pn_EmporeSel.Color.guesContrastColor()                    ;
+          pn_EmporeSel.Font.Color     := pn_EmporeSel.Color.guessContrastColor()                   ;
 
           correctTextPnCol();
 

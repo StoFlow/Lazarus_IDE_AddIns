@@ -1,7 +1,7 @@
 object frm_edtcfg_: Tfrm_edtcfg_
-  Left = 536
+  Left = 534
   Height = 358
-  Top = 418
+  Top = 383
   Width = 652
   BorderIcons = []
   BorderStyle = bsSingle
