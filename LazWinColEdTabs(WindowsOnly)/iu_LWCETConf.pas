@@ -8,6 +8,68 @@ Interface
 Uses
           iu_BGRColor;
 
+
+
+Type
+
+          { tLWCETConfig }
+
+          tLWCETConfig                      = Class( tObject)
+
+          Public
+
+             Type
+                tApplyCallBack              = Procedure ( aSender: tLWCETConfig) Of Object;
+
+                tCloseButtonStyle           = ( cbs_None, cbs_12pxCircle, cbs_11pxRect, cbs_19pxBin);
+
+          Protected
+
+             acb                            : tApplyCallBack;
+
+          Private
+
+
+          Public
+
+
+             // colors
+
+             col_TabLight                   : tBGRColor;
+             col_TabShadow                  : tBGRColor;
+
+             col_TabEmporeUnSel             : tBGRColor;
+
+             col_TabEmporeSlctd             : tBGRColor;
+
+             col_TabFontUnSel               : tBGRColor;
+             col_TabFontSlctd               : tBGRColor;
+
+
+             // font specific
+
+             str_TabFontName                : String   ;
+             int_TabFontHeight              : intEger  ;
+             int_TabFontWidth               : intEger  ;
+
+             // padding
+             bte_TabPaddingX                : Byte     ;
+             bte_TabPaddingY                : Byte     ;
+
+             // close buttons
+             cbs_CloseBtnStyle              : tCloseButtonStyle;
+
+             Constructor                    create();
+             Constructor                    create( aApplyCB: tApplyCallBack);
+
+             Procedure                      assign( aTemplate: tLWCETConfig);
+
+             Function                       clone(): tLWCETConfig;
+
+             Property                       ApplyCB: tApplyCallBack Read acb Write acb;
+
+          End;
+
 Const
           cstr_CfgConfigVersion             = '1';
 
@@ -43,7 +105,9 @@ Const
           cstr_CfgValNmeTabPaddingX         = 'TabPaddingX';
           cstr_CfgValNmeTabPaddingY         = 'TabPaddingY';
 
+             // close buttons
 
+          cstr_CfgValNmeCloseBtnStyle       = 'CloseBtnStyle';
 
           //---------------- Default values
 
@@ -71,61 +135,9 @@ Const
           cbte_TabPaddingX                  = 20;
           cbte_TabPaddingY                  =  4;
 
-Type
+             // close buttons
 
-          { tLWCETConfig }
-
-          tLWCETConfig                      = Class( tObject)
-
-          Public
-
-             Type
-                tApplyCallBack              = Procedure ( aSender: tLWCETConfig) Of Object;
-
-          Protected
-
-             acb                            : tApplyCallBack;
-
-          Private
-
-
-          Public
-
-
-             // colors
-
-             col_TabLight                   : tBGRColor;
-             col_TabShadow                  : tBGRColor;
-
-             col_TabEmporeUnSel             : tBGRColor;
-
-             col_TabEmporeSlctd             : tBGRColor;
-
-             col_TabFontUnSel               : tBGRColor;
-             col_TabFontSlctd               : tBGRColor;
-
-
-             // font specific
-
-             str_TabFontName                : String   ;
-             int_TabFontHeight              : intEger  ;
-             int_TabFontWidth               : intEger  ;
-
-             // padding
-             bte_TabPaddingX                : Byte     ;
-             bte_TabPaddingY                : Byte     ;
-
-
-             Constructor                    create();
-             Constructor                    create( aApplyCB: tApplyCallBack);
-
-             Procedure                      assign( aTemplate: tLWCETConfig);
-
-             Function                       clone(): tLWCETConfig;
-
-             Property                       ApplyCB: tApplyCallBack Read acb Write acb;
-
-          End;
+          ccbs_CloseBtnStyle                = tLWCETConfig.tCloseButtonStyle.cbs_12pxCircle;
 
 
 Implementation
@@ -137,25 +149,28 @@ Constructor
 Begin
           // colors
 
-          col_TabLight      := ccol_TabLight       ;
-          col_TabShadow     := ccol_TabShadow      ;
+          col_TabLight      := ccol_TabLight                   ;
+          col_TabShadow     := ccol_TabShadow                  ;
 
-          col_TabEmporeUnSel:= ccol_TabEmporeUnSel ;
+          col_TabEmporeUnSel:= ccol_TabEmporeUnSel             ;
 
-          col_TabEmporeSlctd:= ccol_TabEmporeSlctd ;
+          col_TabEmporeSlctd:= ccol_TabEmporeSlctd             ;
 
-          col_TabFontUnSel  := ccol_TabFontUnSel   ;
-          col_TabFontSlctd  := ccol_TabFontSlctd   ;
+          col_TabFontUnSel  := ccol_TabFontUnSel               ;
+          col_TabFontSlctd  := ccol_TabFontSlctd               ;
 
           // font specific
 
-          str_TabFontName   := cstr_TabFontName    ;
-          int_TabFontHeight := cint_TabFontHeight  ;
-          int_TabFontWidth  := cint_TabFontWidth   ;
+          str_TabFontName   := cstr_TabFontName                ;
+          int_TabFontHeight := cint_TabFontHeight              ;
+          int_TabFontWidth  := cint_TabFontWidth               ;
 
           // padding
-          bte_TabPaddingX   := cbte_TabPaddingX    ;
-          bte_TabPaddingY   := cbte_TabPaddingY    ;
+          bte_TabPaddingX   := cbte_TabPaddingX                ;
+          bte_TabPaddingY   := cbte_TabPaddingY                ;
+
+          // close buttons
+          cbs_CloseBtnStyle := tCloseButtonStyle.cbs_12pxCircle;  // cbs_None; .
 
           ApplyCB           := Nil;
 
@@ -197,6 +212,9 @@ Begin
           bte_TabPaddingX   := aTemplate.bte_TabPaddingX    ;
           bte_TabPaddingY   := aTemplate.bte_TabPaddingY    ;
 
+          // close buttons
+          cbs_CloseBtnStyle := aTemplate.cbs_CloseBtnStyle  ;
+
           // apply
           ApplyCB           := aTemplate.ApplyCB;
 
@@ -209,6 +227,9 @@ Begin
           Result:= tLWCETConfig.create();
           Result.assign( Self);
 End;
+
+
+
 
 End.
 

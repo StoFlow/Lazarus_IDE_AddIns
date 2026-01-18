@@ -49,6 +49,8 @@ Uses
           ,
           lclType
           ,
+          typInfo
+          ,
           ToolBarIntf
           ,
           SrcEditorIntf
@@ -95,10 +97,12 @@ Const
 
           cstr_TABCTRL_WINCLS_NAME          = 'SysTabControl32';
 
+
+
 Resourcestring
 
-          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.9 - ReInit';
-          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.0.9 - Edit Config';
+          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.0 - ReInit';
+          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.0 - Edit Config';
 
 Type
 
@@ -131,6 +135,7 @@ Type
 
           Protected
 
+             intClsblTabIdx                 : intEger;
              Procedure                      wndCloseSink( aSender: tObject; Var aVarCloseAction: tCloseAction);
 
           Public
@@ -141,11 +146,13 @@ Type
              tcHwnd                         : hWnd;
              orgWDP                         : LONG_PTR;
 
-             intClsblTabIdx                 : intEger;
 
              Procedure                      deInit();
 
              Procedure                      init( aSrcWin: tSourceEditorWindowInterface);
+             Procedure                      invalidateTC( aIdx: intEger);
+
+             Procedure                      setClosableTab( aIdx: intEger);
 
           End;
 
@@ -171,6 +178,9 @@ Type
 
           tHelpObj                          = Class( tObject)
 
+          Public
+             Type
+                tCloseButtonType            = ( STD, SEL, CBL);  // aka standard, selected, closable
 
           Private
 
@@ -193,9 +203,13 @@ Type
 
              orgWDP                         : LONG_PTR;
 
+             str_cbsStyle                   : String;
 
              Procedure                      paintFilledRect( aHDc: hDc; aTabRect: tRect; aRGBColor: tBGRColor); StdCall;
-             Procedure                      showBmpFromRes( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+             Function                       getBmpName( aIsSel: boolEan; aIsCsbl: boolEan): String;
+             Function                       getBmpFromResToShow( aSrcWndDta: tSrcWindowData; aIdx: longInt; aIsSel: boolEan): Graphics.tBitMap;
+             Function                       cbStyleToDim(): intEger;
+             Procedure                      showBmpFromRes( aSrcWndDta: tSrcWindowData; aHDc: hDc; aTabRect: tRect; aIdx: longInt; aIsSel: boolEan); StdCall;
              Procedure                      paintTabRect( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
              Procedure                      prepareLogFont( aTabPos: tTabPosition; Out aOutLF: tLogFont); StdCall;
              Procedure                      drawTabText( aHDc: hDc; aTabPos: tTabPosition; aTabText: String; aTabRect: tRect; aIsSel: boolEan); StdCall;
@@ -221,11 +235,14 @@ Type
 
              Procedure                      cfgApplyCB( aSender: tLWCETConfig);
 
+             Function                       getSrcWndDta( aHWnd: hWnd; Out aOutSrcWndDta: tSrcWindowData): boolEan;
+
              Procedure                      signalClosableTab( aHwnd: hWnd; aTabIdx: intEger);
              Procedure                      resetClosableTab ();
 
              Procedure                      signalCloseTabNow( aHwnd: hWnd; aTabIdx: intEger);
 
+             Procedure                      loadBitmaps();
              Constructor                    create();
 
           End;
@@ -374,11 +391,18 @@ Var
           vLoIdx                            : longInt;
           vLoOne                            : longInt;
           vLRsTabCnt                        : lResult;
-
+          vInDim                            : intEger;
 
 Begin
           Result                  := HTNOWHERE;
           aOutTabIdx              := -1;
+
+          If ( Nil= ho_Obj)
+             Then
+             Begin
+                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  exit;
+          End;
 
           If ( Not getClientXYFromLParam( aHWnd, aLParamFromMsg, vLoX, vLoY))
              Then
@@ -391,19 +415,21 @@ Begin
           vLoIdx                  := TabCtrl_GetCurSel( aHwnd);
           _nOp( [ vLoIdx]);
 
+          vInDim                  := ho_Obj.cbStyleToDim();
+
           For vLoOne:= 0 to vLRsTabCnt- 1
               Do
               Begin
                    TabCtrl_GetItemRect( aHwnd, vLoOne, vtRe1);
 
-                   If ( vLoX> vtRe1.Right- 16) And ( vLoX< vtRe1.Right- 2)
+                   If ( vLoX> vtRe1.Right- vInDim- 3- 1) And ( vLoX< vtRe1.Right- 2)
                       And
-                      ( vLoY> vtRe1.Top  +  3) And ( vLoY< vtRe1.Top  + 16)
+                      ( vLoY> vtRe1.Top          + 3   ) And ( vLoY< vtRe1.Top  + vInDim+ 3+ 1)
                       Then
                       Begin
                            aOutTabIdx:= vLoOne;
                            Result    := HTCLOSE;
-                           'HTCLOSE'.logString();
+
                            Exit;
                    End;
           End;
@@ -434,7 +460,7 @@ Begin
                   Exit;
           End;
 
-          If ( winDOwS.WM_NCHITTEST= aMsg)
+          If ( winDOwS.WM_NCHITTEST= aMsg) And ( tLWCETConfig.tCloseButtonStyle.cbs_None<> ho_Obj.theConfig.cbs_CloseBtnStyle)
              Then
              Begin
                   vLoTabIdxClsbl:= -1;
@@ -743,6 +769,33 @@ Begin
              ho_Obj.init();  // this "trick" might help to reInit after loading another project
 End;
 
+Procedure
+          tSrcWindowData.invalidateTC( aIdx: intEger);
+Var
+          vtReWin                           : tRect;
+
+Begin
+          vtReWin.Left:= 0;
+          TabCtrl_GetItemRect( Self.tcHwnd, aIdx, vtReWin);
+
+          invalidateRect( Self.tcHwnd, vtReWin, True);
+End;
+
+Procedure
+          tSrcWindowData.setClosableTab( aIdx: intEger);
+Var
+          vIntOld                           : intEger;
+Begin
+          vIntOld       := intClsblTabIdx;
+          intClsblTabIdx:= aIdx;
+
+          If ( vIntOld<> intClsblTabIdx)
+             Then
+             Begin
+                  invalidateTC( vIntOld);
+                  invalidateTC( aIdx);
+          End;
+End;
 
 Procedure
           tSrcWindowData.init( aSrcWin: tSourceEditorWindowInterface);
@@ -838,25 +891,94 @@ Begin
 
 End;
 
+Function
+          tHelpObj.getBmpName( aIsSel: boolEan; aIsCsbl: boolEan): String;
+Var
+          vStType                           : String;
+Begin
+          Result     := '';
+
+          If ( Nil= theConfig)
+             Or
+             ( tLWCETConfig.tCloseButtonStyle.cbs_None= theConfig.cbs_CloseBtnStyle)
+             Then
+             Exit;
+
+          vStType    := 'STD';
+          If aIsSel
+             Then
+             vStType := 'SEL';
+
+          If aIsCsbl
+             Then
+             vStType := 'CBL';
+
+          Result     := str_cbsStyle+ '_'+ vStType;
+End;
+
+Function
+          tHelpObj.getBmpFromResToShow( aSrcWndDta: tSrcWindowData; aIdx: longInt; aIsSel: boolEan): Graphics.tBitMap;
+Var
+          vStBmNme                          : String;
+Begin
+
+          Result:= Nil;
+          If ( Nil= aSrcWndDta)
+             Then
+             Exit;
+
+          vStBmNme:= getBmpName( aIsSel, ( aIdx = aSrcWndDta.intClsblTabIdx));
+          If ( ''= vStBmNme)
+             Then
+             Exit;
+
+          Result:= lbmImgs[ vStBmNme];
+End;
+
+Function  // must always be square - don't mess around with the names !!!
+          tHelpObj.cbStyleToDim(): intEger;
+Var
+          vStDim                            : String;
+          vInDim                            : intEger;
+Begin
+          Result:= 12;                      // default
+          vStDim:= '12';
+
+          Try
+             vStDim:= str_cbsStyle.split( [ 'cbs_'])[ 1];
+             vStDim:=       vStDim.split( [   'px'])[ 0];
+
+             If ( intEger.tryParse( vStDim, vInDim))
+                Then
+                Result:= vInDim;
+          Except End;
+
+End;
+
+
 Procedure
-          tHelpObj.showBmpFromRes( aHDc: hDc; aTabRect: tRect; aIsSel: boolEan); StdCall;
+          tHelpObj.showBmpFromRes( aSrcWndDta: tSrcWindowData; aHDc: hDc; aTabRect: tRect; aIdx: longInt; aIsSel: boolEan); StdCall;
 Var
           vtBm1                             : Graphics.tBitmap;
           vtRe1                             : tRect;
           vtCvs                             : tCanvas;
+          vInDim                            : intEger;
 Begin
-          vtBm1:= lbmImgs[ 'CLOSE_CROSS_12X12X4'];
+          If ( tLWCETConfig.tCloseButtonStyle.cbs_None= theConfig.cbs_CloseBtnStyle)
+             Then
+             Exit;
+
+          vtBm1:= getBmpFromResToShow( aSrcWndDta, aIdx, aIsSel);
           If ( Nil= vtBm1)
              Then
-             Begin
-                  showMessage( '( Nil= vtBm1)');
-                  exit;
-          End;
+             exit;
 
-          vtRe1.Left  := aTabRect.Right- 12- 3;
-          vtRe1.Top   := aTabRect.Top      + 3;
-          vtRe1.Width := 12;
-          vtRe1.Height:= 12;
+          vInDim      := cbStyleToDim();
+
+          vtRe1.Left  := aTabRect.Right- vInDim- 3;
+          vtRe1.Top   := aTabRect.Top          + 3;
+          vtRe1.Width := vInDim;
+          vtRe1.Height:= vInDim;
 
 
           vtCvs       := tCanvas.create();
@@ -1051,13 +1173,16 @@ Var
 
           vBoIsSel                          : boolEan;
 
+          vtSrcWndDta                       : tSrcWindowData;
 Begin
+          getSrcWndDta( aHwnd, vtSrcWndDta);
+
           // prevent "does not seem to be initialized"
           vtPs1.hdc               := 0;
           vtRe1.Top               := 0;
           vhDc1                   := winDOwS.beginPaint( aHWnd, vtPs1);
 
-          vTCitm:= TcItem.initIalize( 256, TCIF_TEXT);
+          vTCitm                  := TcItem.initIalize( 256, TCIF_TEXT);
 
           vLRsTabCnt              := TabCtrl_GetItemCount( aHWnd);
           vLoIdx                  := TabCtrl_GetCurSel( aHwnd);
@@ -1076,14 +1201,14 @@ Begin
                    TabCtrl_GetItem( aHwnd, vLoOne, vTCitm);
                    TabCtrl_GetItemRect( aHwnd, vLoOne, vtRe1);
 
-                   vBoIsSel:= ( vLoIdx= vLoOne);
+                   vBoIsSel       := ( vLoIdx= vLoOne);
 
-                   vStTxt:= vTCitm.pszText;
+                   vStTxt         := vTCitm.pszText;
 
                    paintTabRect( vhDc1, vtRe1, vBoIsSel);
                    drawTabText ( vhDc1, tpPosition, vStTxt, vtRe1, vBoIsSel);
 
-                   showBmpFromRes( vhDc1, vtRe1, vBoIsSel);
+                   showBmpFromRes( vtSrcWndDta, vhDc1, vtRe1, vLoOne, vBoIsSel);
                    condDrawFocusRct( vhDc1, vtRe1, vBoIsSel);
           End;
 
@@ -1192,6 +1317,8 @@ Begin
              Begin
                   theConfig           := getConfig();
                   theConfig.ApplyCB   := @Self.cfgApplyCB;
+                  str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
+
                   tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
                   replaceWinProcs();
           End;
@@ -1224,26 +1351,38 @@ Begin
              Exit;
 
           theConfig.assign( aSender);
+          str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
           init( 300);
           setConfig( aSender);
 End;
+
+Function
+          tHelpObj.getSrcWndDta( aHWnd: hWnd; Out aOutSrcWndDta: tSrcWindowData): boolEan;
+Begin
+          Result         := False;
+          aOutSrcWndDta  := Nil;
+
+          If ( Nil= swdcSrcWndDatas)
+             Then
+             Exit;
+
+          aOutSrcWndDta  := swdcSrcWndDatas[ aHwnd];
+          Result         := ( Nil<> aOutSrcWndDta);
+
+End;
+
+
 
 Procedure
           tHelpObj.signalClosableTab( aHwnd: hWnd; aTabIdx: intEger);
 Var
           vtSrcWndDta                       : tSrcWindowData;
 Begin
-          If ( Nil= swdcSrcWndDatas)
+          If ( Not getSrcWndDta( aHwnd, vtSrcWndDta))
              Then
              Exit;
 
-          vtSrcWndDta:= swdcSrcWndDatas[ aHwnd];
-          If ( Nil= vtSrcWndDta)
-             Then
-             Exit;
-
-          vtSrcWndDta.intClsblTabIdx:= aTabIdx;
-
+          vtSrcWndDta.setClosableTab( aTabIdx);
 End;
 
 Procedure
@@ -1257,7 +1396,8 @@ Begin
 
           For vtSrcWndDta In swdcSrcWndDatas
               Do
-              tSrcWindowData( vtSrcWndDta).intClsblTabIdx:= -1;
+              //tSrcWindowData( vtSrcWndDta).intClsblTabIdx:= -1;
+              tSrcWindowData( vtSrcWndDta).setClosableTab( -1);
 End;
 
 Procedure
@@ -1267,12 +1407,7 @@ Var
           vtCtl1                            : tControl;
           vIn1                              : intEger;
 Begin
-          If ( Nil= swdcSrcWndDatas)
-             Then
-             Exit;
-
-          vtSrcWndDta:= swdcSrcWndDatas[ aHwnd];
-          If ( Nil= vtSrcWndDta)
+          If ( Not getSrcWndDta( aHwnd, vtSrcWndDta))
              Then
              Exit;
 
@@ -1313,6 +1448,7 @@ Begin
                 Then
                 Begin
                      theConfig.assign( vtCfg1);
+                     str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
                      init( 300);
                      setConfig( vtCfg1);
              End;
@@ -1384,7 +1520,53 @@ Begin
           checkOptionsChanged();
 End;
 
+Procedure
+          tHelpObj.loadBitmaps();
+Var
+          vtSlStyles                        : tStringList;
+          vtSlTypes                         : tStringList;
 
+          vtSlBmps                          : tStringList;
+          aosBmpNms                         : tStringArray;
+
+          vInOneS                           : intEger;
+          vInCntS                           : intEger;
+
+          vInOneT                           : intEger;
+          vInCntT                           : intEger;
+
+          vStOnBmNme                        : String;
+
+Begin
+          vtSlStyles := tStringList.create();
+          vtSlTypes  := tStringList.create();
+
+          vtSlBmps   := tStringList.create();
+
+          vInCntS    := fillCloseButtonStyles( vtSlStyles, 0);
+          vInCntT    := fillEnumNames        ( typeInfo( tCloseButtonType), vtSlTypes, 0);
+
+          For vInOneS:= 1 To vInCntS- 1     // for "none" we don't have any btmp ;-)
+              Do
+              Begin
+                   For vInOneT:= 0 To vInCntT- 1
+                       Do
+                       Begin
+                            vStOnBmNme:= ( vtSlStyles[ vInOneS]+ '_'+ vtSlTypes[ vInOneT]).toLower();
+                            vtSlBmps.add( vStOnBmNme);
+                   End;
+          End;
+          aosBmpNms := vtSlBmps.toStringArray();
+
+          lbmImgs   := tLitteBmpMgr.create( aosBmpNms);
+
+          aosBmpNms := [];
+          freeAndNil( vtSlBmps);
+          freeAndNil( vtSlStyles);
+          freeAndNil( vtSlTypes);
+
+
+End;
 
 Constructor
           tHelpObj.create();
@@ -1396,8 +1578,14 @@ Begin
           theConfig.ApplyCB   := @Self.cfgApplyCB;
           //setConfig( theConfig);
 
-          lbmImgs             := tLitteBmpMgr.create( [ 'CLOSE_CROSS_8X8X4', 'CLOSE_CROSS_SEL_8X8X4', 'CLOSE_CROSS_12X12X4']);
+          loadBitmaps();
+          str_cbsStyle        := getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( ccbs_CloseBtnStyle));
 
+
+          //lbmImgs             := tLitteBmpMgr.create( [
+          //                                            cstr_RESNME_CLSBTN_CL_STD_12    , cstr_RESNME_CLSBTN_CL_SEL_12    , cstr_RESNME_CLSBTN_CL_CBL_12,
+          //                                            cstr_RESNME_CLSBTN_RA_STD_12    , cstr_RESNME_CLSBTN_RA_SEL_12    , cstr_RESNME_CLSBTN_RA_CBL_12
+          //                                            ]);
 
           swcSrcNbk           := Nil;
           dwSrcWinCnt         := -1;

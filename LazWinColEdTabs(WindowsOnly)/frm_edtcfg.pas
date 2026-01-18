@@ -52,9 +52,11 @@ Type
 
 
              cbx_Fonts                      : tComboBox;
+             cbx_CloseBtns                  : tComboBox;
              lbl_FntHght                    : tLabel;
              lbl_PdgX                       : tLabel;
              lbl_FntWdth                    : tLabel;
+             lbl_CloseBtns                  : tLabel;
              lbl_PdgY                       : tLabel;
 
              lbl_SelTab                     : tLabel;
@@ -64,6 +66,7 @@ Type
              lbl_Lights                     : tLabel;
              lbl_Shadows                    : tLabel;
              lbl_OthTxt                     : tLabel;
+             pn_Pad2ClsBtns                 : tPanel;
              pn_EmporeOth                   : tPanel;
              pn_Lights                      : tPanel;
              pn_Btns                        : tPanel;
@@ -142,6 +145,10 @@ Implementation
 
 Uses
           lclType
+          //,
+          //typInfo
+          ,
+          su_LWCETConf
           ,
           winDOwS
           ;
@@ -304,6 +311,8 @@ Begin
                   freeAndNil( vtSl1);
           End;
 
+          fillCloseButtonStyles( cbx_CloseBtns.Items);
+
           assignToFrm();
 End;
 
@@ -350,6 +359,12 @@ Begin
           theConfig.bte_TabPaddingX   := sped_PdgX.Value                          ;
           theConfig.bte_TabPaddingY   := sped_PdgY.Value                          ;
 
+          // close buttons
+          theConfig.cbs_CloseBtnStyle := tLWCETConfig.tCloseButtonStyle(
+                                           cbx_CloseBtns.ItemIndex
+                                         )                                        ;
+
+
 End;
 
 
@@ -388,6 +403,9 @@ Begin
           // padding
           sped_PdgX.Value             := theConfig.bte_TabPaddingX                                 ;
           sped_PdgY.Value             := theConfig.bte_TabPaddingY                                 ;
+
+          // close buttons
+          cbx_CloseBtns.ItemIndex     := intEger( theConfig.cbs_CloseBtnStyle)                     ;
 
           // Apply CB
           bbt_apply.Enabled           := assigned( theConfig.ApplyCB)                              ;

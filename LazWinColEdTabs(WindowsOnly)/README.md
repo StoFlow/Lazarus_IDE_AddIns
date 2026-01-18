@@ -4,7 +4,7 @@
 
 This add-in is an experimental one, it's working for me (see folder "doc").
 
-- If you miss the buttons as shown in the video(s), then goto Tools->Options->Environment->IDE Coolbar and configure your buttons.
+- If you miss the coolbar buttons as shown in the video(s), then goto Tools->Options->Environment->IDE Coolbar and configure your buttons.
 - The add-inn now has two buttons (even with changed IDs), if you already used the add-inn, also do -"-
 
 But it still has limitations and restrictions :
@@ -17,4 +17,4 @@ But it still has limitations and restrictions :
 - ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
 - ~~Manual reinitialization required after loading another project~~
 - The "magic" is done by using a timer - this is always ugly :/ - would need (to know) some events 8-0
-- V 0.0.9 always shows close-buttons for tabs - not configurable and very basic design use previous version if you don't like this
+- ~~V 0.0.9 always shows close-buttons for tabs - not configurable and very basic design use previous version if you don't like this~~

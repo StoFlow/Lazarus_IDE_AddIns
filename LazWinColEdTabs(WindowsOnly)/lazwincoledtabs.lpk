@@ -20,7 +20,7 @@
     <Description Value="Only for Windows Lazarus!
 Still with limitations and restrictions."/>
     <License Value="see licence.md"/>
-    <Version Release="9"/>
+    <Version Minor="1"/>
     <Files>
       <Item>
         <Filename Value="LazWinColEdTabsImpl.pas"/>

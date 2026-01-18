@@ -48,6 +48,8 @@ Type
 
              Function                       loadOnePic( aName: String): tBitmap;
              Function                       loadPics( aBmpNames: tStringArray): dWord;
+
+             Constructor                    create( aBmpNames: tStringArray );
              Constructor                    create( aBmpNames: Array Of String);
 
              Procedure                      unLoadOnePic( aPic: pBitmap);
@@ -152,13 +154,22 @@ Begin
 End;
 
 Constructor
+          tLitteBmpMgr.create( aBmpNames: tStringArray );
+Begin
+          inHerited create();
+
+          sl_Bmps:= tStringList.create( True);
+          loadPics( aBmpNames);
+End;
+
+
+Constructor
           tLitteBmpMgr.create( aBmpNames: Array Of String);
 Begin
           inHerited create();
 
           sl_Bmps:= tStringList.create( True);
           loadPics( tStringArray.fromOpenAOS( aBmpNames));
-
 End;
 
 

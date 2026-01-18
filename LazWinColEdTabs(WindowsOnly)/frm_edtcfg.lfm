@@ -176,7 +176,6 @@ object frm_edtcfg_: Tfrm_edtcfg_
       Top = 1
       Width = 75
       Align = alRight
-      Cancel = True
       DefaultCaption = True
       GlyphShowMode = gsmAlways
       Kind = bkCancel
@@ -320,6 +319,33 @@ object frm_edtcfg_: Tfrm_edtcfg_
           MinValue = 2
           TabOrder = 1
           Value = 5
+        end
+        object pn_Pad2ClsBtns: TPanel
+          Left = 213
+          Height = 53
+          Top = 6
+          Width = 3
+          BevelInner = bvLowered
+          Caption = ' '
+          TabOrder = 2
+        end
+        object cbx_CloseBtns: TComboBox
+          Left = 254
+          Height = 23
+          Top = 36
+          Width = 167
+          AutoSize = False
+          ItemHeight = 15
+          Style = csDropDownList
+          TabOrder = 3
+        end
+        object lbl_CloseBtns: TLabel
+          Left = 254
+          Height = 15
+          Top = 11
+          Width = 151
+          Caption = '&Button Style (Close buttons) '
+          FocusControl = cbx_CloseBtns
         end
       end
       object pn_Font: TPanel
