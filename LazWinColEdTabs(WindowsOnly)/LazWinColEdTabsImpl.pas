@@ -69,8 +69,6 @@ Uses
           ,
           proJect
           ,
-          //SynEdit
-          //,
           iu_WinMessages
           ,
           iu_DateTime
@@ -101,8 +99,8 @@ Const
 
 Resourcestring
 
-          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.0 - ReInit';
-          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.0 - Edit Config';
+          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.1 - ReInit';
+          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.1 - Edit Config';
 
 Type
 
@@ -190,7 +188,7 @@ Type
 
              dwSrcWinCnt                    : -1.. $FFFFFF;
 
-             tmrStart                       : extCtrls.tTimer;
+             tmrStartLWCET                  : extCtrls.tTimer;
 
              tpPosition                     : tTabPosition;
 
@@ -227,6 +225,7 @@ Type
 
              Procedure                      init( aWaitTime: dWord= 500);
              Procedure                      deInit();
+             Procedure                      reInit( aWaitTime: dWord= 500);
 
           Public
 
@@ -435,7 +434,6 @@ Begin
           End;
 End;
 
-
 Function
           _wndProc ( aHWnd: hWND; aMsg: uINT; aWParam: wPARAM; aLParam: lPARAM): lResult; StdCall;
 Var
@@ -443,69 +441,76 @@ Var
           vLoTabIdxClsbl                    : intEger;
 Begin
 
-          //_formatMsg4Log( aHWnd, aMsg, aWParam, aLParam).logString();
-          If ( Nil= ho_Obj)
-             Then
-             Begin
-                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
-                  exit;
+          Try
+            //_formatMsg4Log( aHWnd, aMsg, aWParam, aLParam).logString();
+            If ( Nil= ho_Obj)
+               Then
+               Begin
+                    messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                    exit;
+            End;
+
+            If ( winDOwS.WM_Paint= aMsg)
+               Then
+               Begin
+                    ho_Obj.paintTabs( aHWnd);
+
+                    Result:= 0;
+                    Exit;
+            End;
+
+            If ( winDOwS.WM_NCHITTEST= aMsg) And ( tLWCETConfig.tCloseButtonStyle.cbs_None<> ho_Obj.theConfig.cbs_CloseBtnStyle)
+               Then
+               Begin
+                    vLoTabIdxClsbl:= -1;
+
+                    Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
+
+                    If ( HTCLOSE= Result)
+                       Then
+                       Begin
+                            ho_Obj.signalClosableTab( aHWnd, vLoTabIdxClsbl);
+                            Exit;
+                       End
+                    Else
+                       Begin
+                            ho_Obj.resetClosableTab();
+                            //Exit;
+                    End;
+            End;
+
+            If ( winDOwS.WM_NCLBUTTONDOWN= aMsg)
+               Then
+               Begin
+                    vLoTabIdxClsbl:= -1;
+
+                    Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
+
+                    If ( HTCLOSE= Result)
+                       Then
+                       Begin
+                            ho_Obj.signalCloseTabNow( aHWnd, vLoTabIdxClsbl);
+                            Result:= 0;
+                            Exit;
+                    //   End
+                    //Else
+                    //   Begin
+                    //        ho_Obj.resetClosableTab();
+                    End;
+            End;
+
+            vtSrcWndDta:= ho_Obj.swdcSrcWndDatas.SrcWindowData[ aHWnd];
+
+            If ( Nil<> vtSrcWndDta) And ( 0<> vtSrcWndDta.orgWDP)
+               Then
+               {$warnings off} {$hints off}
+               Result:= callWindowProcW( WndProc( vtSrcWndDta.orgWDP), aHWnd, aMsg, aWParam, aLParam);
+               {$warnings on}  {$hints on}
+
+          Except
+            On E: Exception Do String( '_wndProc() - '+ E.Message).logString() // showMessage( E.Message);
           End;
 
-          If ( winDOwS.WM_Paint= aMsg)
-             Then
-             Begin
-                  ho_Obj.paintTabs( aHWnd);
-
-                  Result:= 0;
-                  Exit;
-          End;
-
-          If ( winDOwS.WM_NCHITTEST= aMsg) And ( tLWCETConfig.tCloseButtonStyle.cbs_None<> ho_Obj.theConfig.cbs_CloseBtnStyle)
-             Then
-             Begin
-                  vLoTabIdxClsbl:= -1;
-
-                  Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
-
-                  If ( HTCLOSE= Result)
-                     Then
-                     Begin
-                          ho_Obj.signalClosableTab( aHWnd, vLoTabIdxClsbl);
-                          Exit;
-                     End
-                  Else
-                     Begin
-                          ho_Obj.resetClosableTab();
-                  End;
-          End;
-
-          If ( winDOwS.WM_NCLBUTTONDOWN= aMsg)
-             Then
-             Begin
-                  vLoTabIdxClsbl:= -1;
-
-                  Result:= tabRectHitTest( aHwnd, aLParam, vLoTabIdxClsbl);
-
-                  If ( HTCLOSE= Result)
-                     Then
-                     Begin
-                          ho_Obj.signalCloseTabNow( aHWnd, vLoTabIdxClsbl);
-                          Result:= 0;
-                          Exit;
-                  //   End
-                  //Else
-                  //   Begin
-                  //        ho_Obj.resetClosableTab();
-                  End;
-          End;
-
-          vtSrcWndDta:= ho_Obj.swdcSrcWndDatas.SrcWindowData[ aHWnd];
-
-          If ( Nil<> vtSrcWndDta) And ( 0<> vtSrcWndDta.orgWDP)
-             Then
-             {$warnings off} {$hints off}
-             Result:= callWindowProcW( WndProc( vtSrcWndDta.orgWDP), aHWnd, aMsg, aWParam, aLParam);
-             {$warnings on}  {$hints on}
 End;
 
 Function
@@ -519,11 +524,13 @@ Var
           vPoOldWP                          : LONG_PTR;
           vtReWin                           : tRect;
           vTCitm                            : TC_ITEM;
+          //vStTbTx                           : String;
           vLoIdx                            : longInt;
           vtSrcEdCur                        : tSourceEditorInterface;
           vLoCnt                            : longInt;
 
           vtSrcWndDta                       : tSrcWindowData;
+
 
 Begin
           _nOp( [ aHwnd, aLParam]);
@@ -561,17 +568,17 @@ Begin
 
                           TabCtrl_SetPadding( aHwnd, ho_Obj.theConfig.bte_TabPaddingX, ho_Obj.theConfig.bte_TabPaddingY); // this makes the tabs more comfortable
 
-                          vtSrcWndDta.orgWDP:= getWindowLongPtr( aHwnd, GWLP_WNDPROC);
+                          vtSrcWndDta.orgWDP:= getWindowLongPtrW( aHwnd, GWLP_WNDPROC);
 
                           {$warnings off} {$hints off}
                           vPoOldWP                := LONG_PTR( @_wndProc);
                           {$warnings on}  {$hints on}
-                          setWindowLongPtr( aHwnd, GWLP_WNDPROC, vPoOldWP);
+                          setWindowLongPtrW( aHwnd, GWLP_WNDPROC, vPoOldWP);
 
                           // prevent "does not seem to be initialized"
                           vtReWin.Top:= 0;
 
-                          // the trick (part 1) below makes the tabcontrol redraw
+                          // the trick below makes the tabcontrol redraw (in most cases)
                           getClientRect( aHwnd, vtReWin);
                           invalidateRect( aHwnd, vtReWin, True);
 
@@ -582,8 +589,10 @@ Begin
                                   vLoIdx          := TabCtrl_GetCurSel( aHwnd);
                                   TabCtrl_GetItem( aHwnd, vLoCnt- 1, vTCitm);
                                   TabCtrl_SetItem( aHwnd, vLoCnt- 1, vTCitm);
+
                                   TabCtrl_SetCurSel( aHwnd, vLoIdx);
                                   TabCtrl_setCurFocus( aHwnd, vLoIdx);
+
                           End;
 
                           getClientRect( aHwnd, vtReWin);
@@ -596,6 +605,7 @@ Begin
                           vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcWndDta.SrcForm[ 0];
 
                           vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcEdCur;
+
 
                   End;
           End;
@@ -736,7 +746,7 @@ Begin
           If ( 0<> orgWDP) And ( 0<> tcHwnd)
              Then
              Try
-                setWindowLongPtr( tcHwnd, GWLP_WNDPROC, orgWDP);
+                setWindowLongPtrW( tcHwnd, GWLP_WNDPROC, orgWDP);
                 intClsblTabIdx := -1;
                 orgWDP         := 0;
                 tcHwnd         := 0;
@@ -1280,9 +1290,13 @@ Begin
              Then
              Begin
                   messageDlg( 'LazWinColEdTabs', 'SrcEditorIntf.SourceEditorManagerIntf is still not assigned', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
-                  tmrStart.Enabled:= True;
+                  tmrStartLWCET.Enabled:= True;
                   Exit;
           End;
+
+          For vIn1:= 0 To SrcEditorIntf.SourceEditorManagerIntf.SourceWindowCount- 1
+              Do
+              replaceOneWinProc( SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1]);
 
           If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
              Then
@@ -1292,11 +1306,6 @@ Begin
                   IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @afterIDEOptionsWritten, False);
           End;
 
-          For vIn1:= 0 To SrcEditorIntf.SourceEditorManagerIntf.SourceWindowCount- 1
-              Do
-              replaceOneWinProc( SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1]);
-
-
 End;
 
 
@@ -1305,17 +1314,19 @@ Procedure
 
 Begin
           _nOp( [ aSender]);
-          tmrStart.Enabled:= False;
+          tmrStartLWCET.Enabled:= False;
+
+          Try
 
           // if no project is assigned - then the project dialog might be loaded after "close project" - so we'll wait
           If ( Not assigned( Project1))
              Then
              Begin
-                  init( 2500);  // wait somewhat longer, cause the dlg might be open a long time
+                  reInit( 2500);
              End
           Else
              Begin
-                  theConfig           := getConfig();
+                  theConfig           := getConfig();   // Result  := tLWCETConfig.create();
                   theConfig.ApplyCB   := @Self.cfgApplyCB;
                   str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
 
@@ -1323,8 +1334,18 @@ Begin
                   replaceWinProcs();
           End;
 
+          Except
+            On E: Exception Do String( 'tHelpObj.startTimer() - '+ E.Message).logString() // showMessage( E.Message);
+          End
+
 End;
 
+Procedure
+          tHelpObj.reInit( aWaitTime: dWord= 500);
+Begin
+          deInit();
+          init( aWaitTime);
+End;
 
 Procedure
           tHelpObj.lwcetReInit( aSender: tObject);
@@ -1336,10 +1357,7 @@ Begin
           vStMsg:= '(Re-)Aktivieren für aktive Editorfenster ?';
           If ( mrYes= messageDlg( 'LazWinColEdTabs', vStMsg, tMsgDlgType.mtInformation, [ tMsgDlgBtn.mbYes, tMsgDlgBtn.mbClose] , 0))
              Then
-             Begin
-                  deInit();
-                  init( 0);
-          End;
+             reInit( 100);
 
 End;
 
@@ -1352,7 +1370,7 @@ Begin
 
           theConfig.assign( aSender);
           str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
-          init( 300);
+          reInit( 300);
           setConfig( aSender);
 End;
 
@@ -1449,7 +1467,7 @@ Begin
                 Begin
                      theConfig.assign( vtCfg1);
                      str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
-                     init( 300);
+                     reInit( 300);
                      setConfig( vtCfg1);
              End;
              freeAndNil( vtCfg1);
@@ -1464,28 +1482,34 @@ End;
 Procedure
           tHelpObj.init( aWaitTime: dWord= 500);
 Begin
+          Try
 
-          IF ( Nil= tmrStart)
+          IF ( Nil= tmrStartLWCET)
              Then
-             tmrStart        := tTimer.create( Nil);
+             tmrStartLWCET        := tTimer.create( Nil);
 
-          tmrStart.Enabled   := False;
+          tmrStartLWCET.Enabled   := False;
 
           If ( 0< aWaitTime)
              Then
              Begin
-                  tmrStart.Interval  := aWaitTime;
-                  tmrStart.OnTimer   := @startTimer;
-                  tmrStart.Enabled   := True;
+                  tmrStartLWCET.Interval  := aWaitTime;
+                  tmrStartLWCET.OnTimer   := @startTimer;
+                  tmrStartLWCET.Enabled   := True;
              End
           Else
              startTimer( Nil);
+
+          Except
+            On E: Exception Do String( 'tHelpObj.init() - '+ E.Message).logString() // showMessage( E.Message);
+          End
 
 End;
 
 Procedure
           tHelpObj.deInit();
 Begin
+          tmrStartLWCET.Enabled:= False;
           swdcSrcWndDatas.deInit();
 
 End;
@@ -1506,8 +1530,7 @@ Begin
                 Then
                 Begin
                      tpPosition:= vtTbPos;
-                     deInit();
-                     init( 500);
+                     reInit( 500);
              End;
           Except End;
 End;
@@ -1572,26 +1595,21 @@ Constructor
           tHelpObj.create();
 
 Begin
+          Try
+
           imcCmd_EDTCFG       := Nil;
+          swcSrcNbk           := Nil;
+          tmrStartLWCET       := Nil;
 
           theConfig           := getConfig();       // at this point the cfg might be come from another folder (user-appdata-lazarus)
           theConfig.ApplyCB   := @Self.cfgApplyCB;
-          //setConfig( theConfig);
 
           loadBitmaps();
           str_cbsStyle        := getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( ccbs_CloseBtnStyle));
 
-
-          //lbmImgs             := tLitteBmpMgr.create( [
-          //                                            cstr_RESNME_CLSBTN_CL_STD_12    , cstr_RESNME_CLSBTN_CL_SEL_12    , cstr_RESNME_CLSBTN_CL_CBL_12,
-          //                                            cstr_RESNME_CLSBTN_RA_STD_12    , cstr_RESNME_CLSBTN_RA_SEL_12    , cstr_RESNME_CLSBTN_RA_CBL_12
-          //                                            ]);
-
-          swcSrcNbk           := Nil;
           dwSrcWinCnt         := -1;
 
           swdcSrcWndDatas     := tSrcWindowDataColl.create();
-          tmrStart            := Nil;
 
           intEger( tpPosition):= -1;
 
@@ -1603,6 +1621,9 @@ Begin
                   exit;
           End;
 
+          Except
+            On E: Exception Do String( 'tHelpObj.create() - '+ E.Message).logString() // showMessage( E.Message);
+          End
 
 End;
 
@@ -1610,7 +1631,6 @@ End;
 Initialization
 Begin
           ho_Obj:= tHelpObj.Create();
-
 End;
 
 Finalization

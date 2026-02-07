@@ -21,7 +21,7 @@ Type
              Type
                 tApplyCallBack              = Procedure ( aSender: tLWCETConfig) Of Object;
 
-                tCloseButtonStyle           = ( cbs_None, cbs_12pxCircle, cbs_11pxRect, cbs_19pxBin);
+                tCloseButtonStyle           = ( cbs_None, cbs_12pxCircle, cbs_11pxRect, cbs_19pxBin, cbs_21pxTriAng);
 
           Protected
 

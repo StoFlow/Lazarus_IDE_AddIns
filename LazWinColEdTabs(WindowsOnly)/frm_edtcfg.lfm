@@ -141,7 +141,7 @@ object frm_edtcfg_: Tfrm_edtcfg_
     FFFFC001FFBFC001FF1FC001BE0FC0019C07E001880FE003801FE003803FE003
     807FE00380FFE00380FFF007807FFFFF803FFFFFFFFFFFFFFFFF
   }
-  LCLVersion = '4.99.0.0'
+  LCLVersion = '4.0.0.4'
   OnCloseQuery = FormCloseQuery
   OnShow = FormShow
   object pn_Btns: TPanel
@@ -315,7 +315,7 @@ object frm_edtcfg_: Tfrm_edtcfg_
           Height = 23
           Top = 36
           Width = 50
-          MaxValue = 8
+          MaxValue = 32
           MinValue = 2
           TabOrder = 1
           Value = 5

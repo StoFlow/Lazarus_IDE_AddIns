@@ -4,6 +4,12 @@ Unit
           {$mode ObjFPC}{$H+}
           {$ModeSwitch typehelpers}
 
+
+          {$If ( FPC_RELEASE< 3)}
+               {$Define belowFPC331}
+          {$Else}
+          {$EndIf}
+
 Interface
 
 Uses
@@ -74,8 +80,24 @@ Uses
 
 Class Function
            tHTypeHelpertStrArr.fromOpenAOS( aStrings: Array Of String): tStringArray;
+           {$IFDEF belowFPC331}
+Var
+           vIn1                              : intEger;
+           vIn2                              : intEger;
+           {$ENDIF}
 Begin
+           {$IFDEF belowFPC331}
+           vIn2:= length( aStrings);
+           Result:= [];
+           setLength( Result, vIn2);
+           For vIn1:= 0 To vIn2- 1
+               Do
+               Begin
+                    Result[ vIn1]:= aStrings[ vIn1];
+           End;
+           {$ELSE}
            Result:= copy( aStrings, 0, length( aStrings));
+           {$ENDIF}
 End;
 
 
@@ -158,7 +180,12 @@ Constructor
 Begin
           inHerited create();
 
+          {$IFDEF belowFPC331}
+          sl_Bmps:= tStringList.create();
+          {$ELSE}
           sl_Bmps:= tStringList.create( True);
+          {$ENDIF}
+
           loadPics( aBmpNames);
 End;
 
@@ -168,7 +195,11 @@ Constructor
 Begin
           inHerited create();
 
+          {$IFDEF belowFPC331}
+          sl_Bmps:= tStringList.create();
+          {$ELSE}
           sl_Bmps:= tStringList.create( True);
+          {$ENDIF}
           loadPics( tStringArray.fromOpenAOS( aBmpNames));
 End;
 
