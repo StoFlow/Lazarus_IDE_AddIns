@@ -4,24 +4,15 @@
 
 Hints
 
-- This version is for more stability
+- This subversion is for more comfort (better [re-]init)
 - Pls. use a recent version of lazarus
 
 This add-in is an experimental one, it's working for me (see folder "doc").
 
 - If you miss the coolbar buttons as shown in the video(s), then goto Tools->Options->Environment->IDE Coolbar and configure your buttons.
-- The add-inn now has two buttons (even with changed IDs), if you already used the add-inn, also do -"-
 
 But it still has limitations and restrictions :
 
-- ~~No multi-editor-window support~~
-- ~~Only manual reinitialization support (via Tools-command)~~
-- ~~Tabs on left or on right are not being displayed correctly~~
-- ~~Font, dimensions and colors must be changed using customized XML-files (no UI to change)~~
-- ~~Changing settings for the pages in tools-options requires restarting of lazarus~~
-- ~~Changing settings for the pages in tools-options may also lead to unexpected behavior~~
-- ~~Manual reinitialization required after loading another project~~
 - The "magic" is done by using a timer - this is always ugly :/ - would need (to know) some events 8-0
-- ~~V 0.0.9 always shows close-buttons for tabs - not configurable and very basic design use previous version if you don't like this~~
 - After changing of config, the look might by not perfect - just size the editor window then
   

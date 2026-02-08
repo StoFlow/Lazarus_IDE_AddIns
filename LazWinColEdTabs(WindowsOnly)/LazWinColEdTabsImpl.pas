@@ -99,8 +99,8 @@ Const
 
 Resourcestring
 
-          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.1 - ReInit';
-          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.1 - Edit Config';
+          SREINIT_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.2 - ReInit';
+          SEDTCFG_ADDINN_IDEMenuCaption     = 'LazWinColEdTabs V 0.1.1.2 - Edit Config';
 
 Type
 
@@ -238,6 +238,9 @@ Type
 
              Procedure                      signalClosableTab( aHwnd: hWnd; aTabIdx: intEger);
              Procedure                      resetClosableTab ();
+
+             Procedure                      redrawTabsWin( aHwnd: hWnd);
+             Procedure                      redrawTabsCtl( aHwnd: hWnd);
 
              Procedure                      signalCloseTabNow( aHwnd: hWnd; aTabIdx: intEger);
 
@@ -514,7 +517,7 @@ Begin
 End;
 
 Function
-          findSysTabCtrlProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
+          findWndAndSetConfigProc( aHwnd: hWnd; aLParam: lParam): WinBool; Stdcall;
 Const
           cLoBuf                            = 1024;
 Var
@@ -522,12 +525,6 @@ Var
           vLoCNLen                          : longInt;
           vStClsNme                         : String;
           vPoOldWP                          : LONG_PTR;
-          vtReWin                           : tRect;
-          vTCitm                            : TC_ITEM;
-          //vStTbTx                           : String;
-          vLoIdx                            : longInt;
-          vtSrcEdCur                        : tSourceEditorInterface;
-          vLoCnt                            : longInt;
 
           vtSrcWndDta                       : tSrcWindowData;
 
@@ -551,8 +548,6 @@ Begin
 
           vtSrcWndDta:= tSrcWindowData( aLParam);
 
-          vTCitm:= TCITEM.initIalize( 256, TCIF_TEXT);
-
           Result:= True;
           vLoCNLen:= getClassName( aHwnd, @aocClsNme, cLoBuf);
           If ( 0< vLoCNLen)
@@ -575,41 +570,12 @@ Begin
                           {$warnings on}  {$hints on}
                           setWindowLongPtrW( aHwnd, GWLP_WNDPROC, vPoOldWP);
 
-                          // prevent "does not seem to be initialized"
-                          vtReWin.Top:= 0;
-
-                          // the trick below makes the tabcontrol redraw (in most cases)
-                          getClientRect( aHwnd, vtReWin);
-                          invalidateRect( aHwnd, vtReWin, True);
-
-                          vLoCnt                  := TabCtrl_GetItemCount( aHwnd);
-                          If ( 0< vLoCnt)
-                             Then
-                             Begin
-                                  vLoIdx          := TabCtrl_GetCurSel( aHwnd);
-                                  TabCtrl_GetItem( aHwnd, vLoCnt- 1, vTCitm);
-                                  TabCtrl_SetItem( aHwnd, vLoCnt- 1, vTCitm);
-
-                                  TabCtrl_SetCurSel( aHwnd, vLoIdx);
-                                  TabCtrl_setCurFocus( aHwnd, vLoIdx);
-
-                          End;
-
-                          getClientRect( aHwnd, vtReWin);
-                          invalidateRect( aHwnd, vtReWin, True);
-
-                          vtSrcEdCur              := vtSrcWndDta.SrcForm.ActiveEditor;
-                          vLoCnt                  := vtSrcWndDta.SrcForm.Count;
-
-                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcWndDta.SrcForm[ vLoCnt- 1];
-                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcWndDta.SrcForm[ 0];
-
-                          vtSrcWndDta.SrcForm.ActiveEditor:= vtSrcEdCur;
-
+                          // the trick(s) below make(s) the tabcontrol redraw (in most cases)
+                          ho_Obj.redrawTabsWin( aHwnd);
+                          ho_Obj.redrawTabsCtl( aHwnd);
 
                   End;
           End;
-          vTCitm.deInitIalize( vTCitm);
 
 End;
 
@@ -830,7 +796,7 @@ Begin
 
           aSrcWin.OnClose  := @wndCloseSink;
 
-          enumChildWindows( ptHWnd, @findSysTabCtrlProc, lParam( Self));
+          enumChildWindows( ptHWnd, @findWndAndSetConfigProc, lParam( Self));
 End;
 
 
@@ -1419,6 +1385,66 @@ Begin
 End;
 
 Procedure
+          tHelpObj.redrawTabsWin( aHwnd: hWnd);
+Var
+          vTCitm                            : TC_ITEM;
+          vLoIdx                            : longInt;
+          vLoCnt                            : longInt;
+Begin
+
+          vLoCnt                  := TabCtrl_GetItemCount( aHwnd);
+          If ( 0< vLoCnt)
+             Then
+             Begin
+                  vTCitm:= TCITEM.initIalize( 256, TCIF_TEXT OR TCIF_STATE OR TCIF_IMAGE OR TCIF_PARAM);
+
+                  vLoIdx          := TabCtrl_GetCurSel( aHwnd);
+                  TabCtrl_GetItem( aHwnd, vLoCnt- 1, vTCitm);
+                  TabCtrl_SetItem( aHwnd, vLoCnt- 1, vTCitm);
+
+                  TabCtrl_SetCurSel( aHwnd, vLoIdx);
+                  TabCtrl_setCurFocus( aHwnd, vLoIdx);
+
+                  vTCitm.deInitIalize( vTCitm);
+          End;
+
+End;
+
+Procedure
+          tHelpObj.redrawTabsCtl( aHwnd: hWnd);
+Var
+          vtSrcWndDta                       : tSrcWindowData;
+          vtCtl1                            : tControl;
+          vIn1                              : intEger;
+          vtXNb                             : tExtendedNotebook;
+
+
+Begin
+          If ( Not getSrcWndDta( aHwnd, vtSrcWndDta))
+             Then
+             Exit;
+
+          If ( Nil<> vtSrcWndDta.SrcForm)
+             Then
+             Begin
+                  For vIn1:= 0 To vtSrcWndDta.SrcForm.ControlCount- 1
+                      Do
+                      Begin
+                           vtCtl1:= vtSrcWndDta.SrcForm.Controls[ vIn1];
+                           If vtCtl1 Is tExtendedNotebook // is not a tTabControl but a custom one
+                              Then
+                              Begin
+                                   vtXNb:= vtCtl1 As tExtendedNotebook;
+                                   vtXNb.ShowTabs:= Not vtXNb.ShowTabs;
+                                   vtXNb.ShowTabs:= Not vtXNb.ShowTabs;
+                                   Exit;
+                           End;
+                  End;
+          End;
+End;
+
+
+Procedure
           tHelpObj.signalCloseTabNow( aHwnd: hWnd; aTabIdx: intEger);
 Var
           vtSrcWndDta                       : tSrcWindowData;
@@ -1446,7 +1472,6 @@ Begin
                               End;
                      End;
              End;
-
 End;
 
 
