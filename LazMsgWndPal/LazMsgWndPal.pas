@@ -8,7 +8,8 @@ unit LazMsgWndPal;
 interface
 
 uses
-  LazMsgWndPalImpl, LazarusPackageIntf;
+  LazMsgWndPalImpl, iu_LMWPConf, su_LMWPConf, frm_LMWPEdtCfg, 
+  LazarusPackageIntf;
 
 implementation
 

@@ -45,6 +45,12 @@ Uses
           IDEExternToolIntf
           ,
           graPhics
+          ,
+          iu_LMWPConf
+          ,
+          su_LMWPConf
+          ,
+          frm_LMWPEdtCfg
           ;
 
 
@@ -57,7 +63,7 @@ Const
 
 Resourcestring
 
-          SMWH_CAPTION_IDEMenuCaption       = 'Settings';
+          SMWH_CAPTION_IDEMenuCaption       = 'Messages window font- and line- height';
 
 Type
 
@@ -89,17 +95,24 @@ Type
 
              tmrStart                       : extCtrls.tTimer;
 
+             theConfig                      : tLMWPConfig;
+
           Public
 
              Procedure                      lmwpEdtCfg( aSender: tObject);
 
+             Procedure                      cfgApplyCB( aSender: tLMWPConfig);
+
              Constructor                    create();
-             Procedure                      changeMsgWndFontHeightAndIconSize( aFontHeight: intEger; aItemHeight: intEger);
+             Procedure                      changeMsgWndFontHeightAndItemSize( aFontHeight: intEger; aItemHeight: intEger);
 
              Procedure                      startTimer( aSender: tObject);
 
              Procedure                      init( aWaitTime: dWord= 250);
              Procedure                      deInit();
+
+             Procedure                      reInit( aWaitTime: dWord= 500);
+
 
           End;
 
@@ -155,7 +168,7 @@ Begin
           If ( Nil= ho_Obj)
              Then
              Begin
-                  messageDlg( 'LazWinColEdTabs', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
+                  messageDlg( 'LazMsgWndPal', 'ho_Obj is Nil', tMsgDlgType.mtWarning, [ tMsgDlgBtn.mbCancel], 0);
                   exit;
           End;
 
@@ -168,13 +181,13 @@ End;
           { tHelpObj }
 
 Procedure
-          tHelpObj.changeMsgWndFontHeightAndIconSize( aFontHeight: intEger; aItemHeight: intEger);
+          tHelpObj.changeMsgWndFontHeightAndItemSize( aFontHeight: intEger; aItemHeight: intEger);
 Var
           vInOne                            : intEger;
           vInCnt                            : intEger;
           vtFrMFrame                        : tFrame;
           vtCcMsgsCtrl                      : tCustomControl;
-
+          vStMsg                            : String;
 Begin
           If not assigned( IDEMessagesWindow)
              Then
@@ -182,7 +195,8 @@ Begin
 
           Try
              IDEMessagesWindow.bringToFront();
-             IDEMessagesWindow.addCustomMessage( tMessageLineUrgency.mluHint, 'Lazarus Messages Window Pal', 'LazMsgWndPalImpl.pas', 0, 0, 'LazMsgWndPalImpl');
+             vStMsg:= 'Lazarus Messages Window Pal';
+             IDEMessagesWindow.addCustomMessage( tMessageLineUrgency.mluHint, vStMsg, 'LazMsgWndPalImpl.pas', 0, 0, 'LazMsgWndPalImpl');
 
              If ( 0< IDEMessagesWindow.ControlCount)
                 Then
@@ -210,6 +224,9 @@ Begin
                                             // so tMessagesCtrlFake has to be restructured too then!
                                             tMessagesCtrlFake( vtCcMsgsCtrl).fItemHeight:= aItemHeight;
                                             vtCcMsgsCtrl.repaint();
+                                            vStMsg:= 'Settings are : aFontHeight => '+ aFontHeight.toString()+ ', aItemHeight => '+ aItemHeight.toString()+ '.';
+                                            IDEMessagesWindow.addCustomMessage( tMessageLineUrgency.mluHint, vStMsg, 'LazMsgWndPalImpl.pas', 0, 0, 'LazMsgWndPalImpl');
+
                                          Except End;
 
                                          vtCcMsgsCtrl:= Nil;
@@ -230,13 +247,18 @@ Procedure
 
 Begin
           _nOp( [ aSender]);
-          tmrStart.Enabled:= False;
+          tmrStart.Enabled    := False;
 
-          {$IFDEF LINUX}
-          changeMsgWndFontHeightAndIconSize( 26, 32);
-          {$ELSE}
-          changeMsgWndFontHeightAndIconSize( 26, 25);
-          {$ENDIF}
+          theConfig           := getConfig();   // Result  := tLWCETConfig.create();
+          theConfig.ApplyCB   := @Self.cfgApplyCB;
+
+          changeMsgWndFontHeightAndItemSize( theConfig.int_FontHeight, theConfig.int_ItemHeight);
+
+          //{$IFDEF LINUX}
+          //changeMsgWndFontHeightAndItemSize( 26, 32);
+          //{$ELSE}
+          //changeMsgWndFontHeightAndItemSize( 26, 25);
+          //{$ENDIF}
 End;
 
 
@@ -269,25 +291,61 @@ Begin
 
 End;
 
+Procedure
+          tHelpObj.reInit( aWaitTime: dWord= 500);
+Begin
+          deInit();
+          init( aWaitTime);
+End;
+
 
 Procedure
           tHelpObj.lmwpEdtCfg( aSender: tObject);
+Var
+          vtCfg1                            : tLMWPConfig;
 
 Begin
-          nOp( aSender);
-          showMessage(
-                      'Sorry guys, settings window to adjust the font height is not implemented yet :/'+
-                      LineEnding+
-                      'Just change the call to changeMsgWndFontHeightAndIconSize()!'
-                     );
+          _nOp( [ aSender]);
+
+          Try
+             imcCmd_MWPSettings.Enabled:= False;
+
+             vtCfg1:= theConfig.clone();
+
+             If ( mrOk= tfrm_LMWPEdtCfg_.exeCute( Nil, vtCfg1))
+                Then
+                Begin
+                     theConfig.assign( vtCfg1);
+                     reInit( 300);
+                     setConfig( vtCfg1);
+             End;
+             freeAndNil( vtCfg1);
+
+          Except End;
+          imcCmd_MWPSettings.Enabled:= True;
+
 End;
+
+Procedure
+          tHelpObj.CfgApplyCB( aSender: tLMWPConfig);
+Begin
+          If ( Nil= aSender)
+             Then
+             Exit;
+
+          theConfig.assign( aSender);
+          reInit( 300);
+          setConfig( aSender);
+End;
+
 
 
 Constructor
           tHelpObj.create();
 Begin
-          // maybe later
           tmrStart            := Nil;
+          theConfig           := getConfig();       // at this point the cfg might be come from another folder (user-appdata-lazarus)
+          theConfig.ApplyCB   := @Self.cfgApplyCB;
 End;
 
 
