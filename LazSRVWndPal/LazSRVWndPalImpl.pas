@@ -7,9 +7,8 @@ Unit
           {$ModeSwitch typehelpers}
 
 
-          {$Define FUN}
+          //{$Define FUN}
 
-          //
 
 Interface
 
@@ -51,6 +50,8 @@ Uses
           {$IFDEF FUN}
           stdCtrls
           ,
+          iu_LSWPBGRColor
+          ,
           {$ENDIF}
           extCtrls
           ,
@@ -61,6 +62,12 @@ Uses
           graPhics
           ,
           butTons
+          ,
+          iu_LSWPConf
+          ,
+          su_LSWPConf
+          ,
+          frm_LSWPEdtCfg
           ;
 
 
@@ -69,14 +76,14 @@ Uses
 
 Const
           // command
-          SMWH_CAPTION                      = 'lazsrvwndpal';
+          SSWH_CAPTION                      = 'lazsrvwndpal';
           {$IFDEF FUN}
           FUN_TSH_CAPTION                   = 'Lazarus Search Window Pal';
           {$ENDIF}
 
 Resourcestring
 
-          SMWH_CAPTION_IDEMenuCaption       = 'Search results font height';
+          SSWH_CAPTION_IDEMenuCaption       = 'Search results font height';
 
 Type
 
@@ -89,13 +96,17 @@ Type
 
              tmrStSRVPal                    : extCtrls.tTimer;
 
+             theConfig                      : tLSWPConfig;
+
              {$IFDEF FUN}
              ts_MyTabSheet                  : tTabSheet;
              {$ENDIF}
 
           Public
 
-             Procedure                      lmwpEdtCfg( aSender: tObject);
+             Procedure                      lswpEdtCfg( aSender: tObject);
+
+             Procedure                      cfgApplyCB( aSender: tLSWPConfig);
 
              Constructor                    create();
 
@@ -106,18 +117,27 @@ Type
              Procedure                      closeMyTabSheet( aSender: tObject);
              {$ENDIF}
 
-             Procedure                      changeSRVWndFontHeight( aFontHeight: intEger);
+             Procedure                      changeSRVWndSettings(
+                                                                  aFontHeight: intEger
+                                                                  {$IFDEF FUN}
+                                                                  ;
+                                                                  aBackColor : tBGRColor
+                                                                  ;
+                                                                  aTextColor : tBGRColor
+                                                                  {$ENDIF}
+                                                                );
 
              Procedure                      startTimer( aSender: tObject);
 
              Procedure                      init( aWaitTime: dWord= 250);
              Procedure                      deInit();
+             Procedure                      reInit( aWaitTime: dWord= 300);
 
           End;
 
 
 Var
-          imcCmd_MWPSettings                : tIDEMenuCommand= Nil;
+          imcCmd_SWPSettings                : tIDEMenuCommand= Nil;
 
           {%H-}ho_Obj                       : tHelpObj= Nil;
           {%H+}
@@ -161,8 +181,8 @@ End;
 Procedure
           Register;
 Begin
-          imcCmd_MWPSettings        := registerOneCmd( SMWH_CAPTION, SMWH_CAPTION_IDEMenuCaption, @ho_Obj.lmwpEdtCfg);
-          imcCmd_MWPSettings.Enabled:= True;
+          imcCmd_SWPSettings        := registerOneCmd( SSWH_CAPTION, SSWH_CAPTION_IDEMenuCaption, @ho_Obj.lswpEdtCfg);
+          imcCmd_SWPSettings.Enabled:= True;
 
           If ( Nil= ho_Obj)
              Then
@@ -280,7 +300,15 @@ End;
           {$ENDIF}
 
 Procedure
-          tHelpObj.changeSRVWndFontHeight( aFontHeight: intEger);
+          tHelpObj.changeSRVWndSettings(
+                                           aFontHeight: intEger
+                                           {$IFDEF FUN}
+                                           ;
+                                           aBackColor : tBGRColor
+                                           ;
+                                           aTextColor : tBGRColor
+                                           {$ENDIF}
+                                         );
 Var
           vtFrm                             : tForm;
           vtCtl1                            : tControl;
@@ -341,8 +369,8 @@ Begin
              vtLbl1                    := tLabel.create( vtTbSht);
              vtLbl1   .Align           := alClient;
              vtLbl1.Alignment          := taCenter;
-             vtLbl1.Color              := clLime;
-             vtLbl1.Font.Color         := clBlack;
+             vtLbl1.Color              := aBackColor.switchLowerBytes();  // clLime;
+             vtLbl1.Font.Color         := aTextColor.switchLowerBytes();  // clBlack;
              vtLbl1.Font.Height        := aFontHeight;
              vtLbl1.Caption            := 'Font height is '+ vtLbl1.Font.Height.toString();
 
@@ -383,11 +411,18 @@ Begin
           _nOp( [ aSender]);
           tmrStSRVPal.Enabled:= False;
 
-          {$IFDEF LINUX}
-          changeSRVWndFontHeight( 26);
-          {$ELSE}
-          changeSRVWndFontHeight( 25);
-          {$ENDIF}
+          theConfig           := getConfig();
+          theConfig.ApplyCB   := @Self.cfgApplyCB;
+
+          changeSRVWndSettings(
+                                theConfig.int_FontHeight
+                                {$IFDEF FUN}
+                                ,
+                                theConfig.col_Back
+                                ,
+                                theConfig.col_Font
+                                {$ENDIF}
+                              );
 End;
 
 
@@ -416,21 +451,56 @@ End;
 Procedure
           tHelpObj.deInit();
 Begin
-          // maybe later
+          {$IFDEF FUN}
+          closeMyTabSheet( Nil);
+          {$ENDIF}
 
+End;
+
+Procedure
+          tHelpObj.reInit( aWaitTime: dWord= 300);
+Begin
+          deInit();
+          init( aWaitTime);
+End;
+
+Procedure
+          tHelpObj.CfgApplyCB( aSender: tLSWPConfig);
+Begin
+          If ( Nil= aSender)
+             Then
+             Exit;
+
+          theConfig.assign( aSender);
+          reInit( 300);
+          setConfig( aSender);
 End;
 
 
 Procedure
-          tHelpObj.lmwpEdtCfg( aSender: tObject);
+          tHelpObj.lswpEdtCfg( aSender: tObject);
+Var
+          vtCfg1                            : tLSWPConfig;
 
 Begin
-          nOp( aSender);
-          showMessage(
-                      'Sorry guys, settings window to adjust the font height is not implemented yet :/'+
-                      LineEnding+
-                      'Just change the call to changeSRVWndFontHeight()!'
-                     );
+          _nOp( [ aSender]);
+
+          Try
+             imcCmd_SWPSettings.Enabled:= False;
+
+             vtCfg1:= theConfig.clone();
+
+             If ( mrOk= tfrm_LSWPEdtCfg_.exeCute( Nil, vtCfg1))
+                Then
+                Begin
+                     theConfig.assign( vtCfg1);
+                     reInit( 300);
+                     setConfig( vtCfg1);
+             End;
+             freeAndNil( vtCfg1);
+
+          Except End;
+          imcCmd_SWPSettings.Enabled:= True;
 End;
 
 

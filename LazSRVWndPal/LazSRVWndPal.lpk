@@ -21,17 +21,43 @@
           <OptimizationLevel Value="0"/>
         </Optimizations>
       </CodeGeneration>
+      <Other>
+        <CustomOptions Value="-dFUN"/>
+        <OtherDefines Count="1">
+          <Define0 Value="FUN"/>
+        </OtherDefines>
+      </Other>
     </CompilerOptions>
     <Description Value="Small helper for search results window to set the font size.
 "/>
     <License Value="see LICENSE.md"/>
-    <Version Release="1"/>
-    <Files Count="1">
+    <Version Release="2"/>
+    <Files Count="6">
       <Item1>
         <Filename Value="LazSRVWndPalImpl.pas"/>
         <HasRegisterProc Value="True"/>
         <UnitName Value="LazSRVWndPalImpl"/>
       </Item1>
+      <Item2>
+        <Filename Value="frm_LSWPEdtCfg.pas"/>
+        <UnitName Value="frm_LSWPEdtCfg"/>
+      </Item2>
+      <Item3>
+        <Filename Value="iu_LSWPConf.pas"/>
+        <UnitName Value="iu_LSWPConf"/>
+      </Item3>
+      <Item4>
+        <Filename Value="su_LSWPConf.pas"/>
+        <UnitName Value="su_LSWPConf"/>
+      </Item4>
+      <Item5>
+        <Filename Value="frm_LSWPEdtCfg.lfm"/>
+        <Type Value="LFM"/>
+      </Item5>
+      <Item6>
+        <Filename Value="iu_LSWPBGRColor.pas"/>
+        <UnitName Value="iu_LSWPBGRColor"/>
+      </Item6>
     </Files>
     <CompatibilityMode Value="True"/>
     <RequiredPkgs Count="5">

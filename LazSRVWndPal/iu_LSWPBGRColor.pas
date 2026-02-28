@@ -1,0 +1,52 @@
+	  { Copyright (C) 2026  StOver }
+Unit
+          iu_LSWPBGRColor;
+
+          {$mode ObjFPC}{$H+}
+          {$ModeSwitch typehelpers}
+
+Interface
+
+Type
+
+          tBGRColor                         = $000000.. $FFFFFF;
+
+          { tHTypeHelperBGRColor }
+
+          tHTypeHelperBGRColor              = Type Helper For tBGRColor
+
+             Function                       switchLowerBytes(): longInt;
+
+          End;
+
+
+
+Const
+          ccolWhite                         = $FFFFFF;
+          ccolBlue                          = $0000FF;
+          ccolLime                          = $00FF00;
+          ccolBlack                         = $000000;
+
+          ccolDarkOchre                     = $999975;
+          ccolLghtOchre                     = $E7E8A8;
+
+
+Implementation
+
+          { tHTypeHelperBGRColor }
+
+Function
+          tHTypeHelperBGRColor.switchLowerBytes(): longInt;
+
+Begin
+          Result:= ( ( Self And $0000FF) Shl 16)
+                   Or
+                   ( ( Self And $00FF00)       )
+                   Or
+                   ( ( Self And $FF0000) Shr 16)
+                   ;
+End;
+
+
+End.
+

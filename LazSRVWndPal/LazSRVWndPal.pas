@@ -8,7 +8,8 @@ unit LazSRVWndPal;
 interface
 
 uses
-  LazSRVWndPalImpl, LazarusPackageIntf;
+  LazSRVWndPalImpl, frm_LSWPEdtCfg, iu_LSWPConf, su_LSWPConf, iu_LSWPBGRColor, 
+  LazarusPackageIntf;
 
 implementation
 
