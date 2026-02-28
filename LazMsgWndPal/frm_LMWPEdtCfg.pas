@@ -110,10 +110,10 @@ Implementation
 
 Uses
           lclType
-          ,
+          //,
           //su_LMWPConf
           //,
-          winDOwS
+          //winDOwS
           ;
 
           {$R *.lfm}
