@@ -1,15 +1,10 @@
 # Lazarus_IDE_AddIns
 
-## Lazarus Messages Window Pal (LazMsgWndPal)
+## Lazarus Object Inspector Pal (LazObjInspPal)
 
 Purpose
 
-- Is just and only to make the messages in the messages window better readable (font size)
-
-Warnings
-
-- Ugly hack - first backup current lazarus.exe before compiling/installing
-- After an update of lazarus the hack might fail - check tMessagesCtrl(fake) then
+- Is just and only to make the Object Inspector texts/values better readable (font size)
 
 Hints
 

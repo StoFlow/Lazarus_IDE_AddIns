@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <Name Value="LazObjInspPal"/>
+    <Type Value="DesignTime"/>
+    <AddToProjectUsesSection Value="True"/>
+    <Author Value="StOverF (Synonym)"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="$(LazarusDir)/designer"/>
+        <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <UseAnsiStrings Value="False"/>
+        </SyntaxOptions>
+      </Parsing>
+      <CodeGeneration>
+        <Optimizations>
+          <OptimizationLevel Value="0"/>
+        </Optimizations>
+      </CodeGeneration>
+      <Other>
+        <CustomOptions Value="-dFUN"/>
+        <OtherDefines Count="1">
+          <Define0 Value="FUN"/>
+        </OtherDefines>
+      </Other>
+    </CompilerOptions>
+    <Description Value="Small helper for search results window to set the font size.
+"/>
+    <License Value="see LICENSE.md"/>
+    <Version Release="1"/>
+    <Files Count="6">
+      <Item1>
+        <Filename Value="LazObjInspPalImpl.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="LazObjInspPalImpl"/>
+      </Item1>
+      <Item2>
+        <Filename Value="frm_LOIPEdtCfg.pas"/>
+        <UnitName Value="frm_LOIPEdtCfg"/>
+      </Item2>
+      <Item3>
+        <Filename Value="iu_LOIPConf.pas"/>
+        <UnitName Value="iu_LOIPConf"/>
+      </Item3>
+      <Item4>
+        <Filename Value="su_LOIPConf.pas"/>
+        <UnitName Value="su_LOIPConf"/>
+      </Item4>
+      <Item5>
+        <Filename Value="frm_LOIPEdtCfg.lfm"/>
+        <Type Value="LFM"/>
+      </Item5>
+    </Files>
+    <CompatibilityMode Value="True"/>
+    <RequiredPkgs Count="5">
+      <Item1>
+        <PackageName Value="IdeProject"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="IdeUtilsPkg"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="CodeTools"/>
+      </Item3>
+      <Item4>
+        <PackageName Value="IDEIntf"/>
+      </Item4>
+      <Item5>
+        <PackageName Value="FCL"/>
+        <MinVersion Major="1" Valid="True"/>
+      </Item5>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
