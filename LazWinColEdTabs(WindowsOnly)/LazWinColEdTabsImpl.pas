@@ -61,7 +61,9 @@ Uses
           ,
           idecmdline
           ,
-          IDEOptEditorIntf
+          IDEOptEditorIntf  // just for the older versions
+          ,
+          EditorOptionsIntf
           ,
           graPhics
           ,
@@ -1264,12 +1266,12 @@ Begin
               Do
               replaceOneWinProc( SrcEditorIntf.SourceEditorManagerIntf.SourceWindows[ vIn1]);
 
-          If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
+          If Not assigned( IDEEditorOptions)
              Then
              showMessage( 'Nil= IDEEditorOptions') // timer ivl too short ?
           Else
              Begin
-                  IDEOptEditorIntf.IDEEditorOptions.addHandlerAfterWrite( @afterIDEOptionsWritten, False);
+                  IDEEditorOptions.addHandlerAfterWrite( @afterIDEOptionsWritten, False);
           End;
 
 End;
@@ -1296,7 +1298,7 @@ Begin
                   theConfig.ApplyCB   := @Self.cfgApplyCB;
                   str_cbsStyle:= getEnumName( typeInfo( tLWCETConfig.tCloseButtonStyle), intEger( theConfig.cbs_CloseBtnStyle));
 
-                  tpPosition:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
+                  tpPosition:= IDEEditorOptions.TabPosition;
                   replaceWinProcs();
           End;
 
@@ -1545,12 +1547,12 @@ Var
           vtTbPos                           : tTabPosition;
 Begin
 
-          If Not assigned( IDEOptEditorIntf.IDEEditorOptions)
+          If Not assigned( IDEEditorOptions)
              Then
              Exit;
 
           Try
-             vtTbPos:= IDEOptEditorIntf.IDEEditorOptions.TabPosition;
+             vtTbPos:= IDEEditorOptions.TabPosition;
              If ( tpPosition<> vtTbPos)
                 Then
                 Begin
